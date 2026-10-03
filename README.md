@@ -258,6 +258,11 @@ Running GoBlog yourself? [Open a pull request](https://github.com/goblogplatform
 go test ./...
 ```
 
+The install smoke test builds the Docker image and walks the install wizard against a fresh database (needs Docker and curl):
+```bash
+scripts/install-smoke-test.sh sqlite   # or mysql, postgres
+```
+
 ## Architecture
 
 - **Gin** for HTTP routing and middleware

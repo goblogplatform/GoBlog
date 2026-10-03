@@ -45,11 +45,9 @@
         <div class="mb-3">
             <label for="hero_url" class="form-label">Hero image or video</label>
             <input type="text" class="form-control" id="hero_url" value="{{ .page.HeroURL }}" placeholder="/uploads/hero.jpg or /uploads/hero.mp4">
-            <div class="d-flex align-items-center gap-2 mt-2">
-                <label for="hero_file" class="btn btn-outline-secondary btn-sm mb-0">Upload a file…</label>
-                <input type="file" id="hero_file" accept="image/*,video/*" class="d-none">
-                <small id="hero_upload_status" class="text-muted">An image or a video. Uploading fills in the URL and the type.</small>
-            </div>
+            <label for="hero_file" class="form-label mt-2 mb-1"><small>Or upload an image or a video; that fills in the URL and the type.</small></label>
+            <input type="file" class="form-control form-control-sm" id="hero_file" accept="image/*,video/*" aria-describedby="hero_upload_status">
+            <small id="hero_upload_status" class="text-muted" role="status" aria-live="polite"></small>
         </div>
 
         <div class="mb-3">

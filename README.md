@@ -1,9 +1,11 @@
-# goblog
-[![Build and Test](https://github.com/compscidr/goblog/actions/workflows/push.yml/badge.svg)](https://github.com/compscidr/goblog/actions/workflows/push.yml)
-[![codecov](https://codecov.io/gh/compscidr/goblog/branch/main/graph/badge.svg)](https://codecov.io/gh/compscidr/goblog)
+# GoBlog
+[![Build and Test](https://github.com/goblogplatform/goblog/actions/workflows/push.yml/badge.svg)](https://github.com/goblogplatform/goblog/actions/workflows/push.yml)
+[![codecov](https://codecov.io/gh/goblogplatform/goblog/branch/main/graph/badge.svg)](https://codecov.io/gh/goblogplatform/goblog)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-A self-hosted blogging platform built with Go. Running at https://www.jasonernst.com
+GoBlog is a simple, self-hosted blogging platform written in Go, with Markdown posts, themes, plugins, comments and an admin dashboard. Running at https://www.jasonernst.com
+
+Upgrading an existing site? See [UPGRADING.md](UPGRADING.md) for release-specific steps.
 
 ## Features
 
@@ -141,8 +143,6 @@ Full guide: [goblog.live/docs/writing-a-theme](https://www.goblog.live/docs/writ
 
 **Admin → Themes** browses the [theme directory](https://www.goblog.live/themes), installs a theme into `themes/installed/` (bind-mount it in Docker, set with `THEMES_INSTALLED_DIR`, or installs vanish on restart), activates it, updates it when the directory has a newer release, and removes it. The directory URL is the `theme_directory_url` setting; see [Publishing a theme](https://www.goblog.live/docs/publishing-a-theme) to publish one.
 
-**Upgrading to 0.7.0:** the `minimal` theme is no longer built in; it is [Minimal](https://github.com/goblogplatform/goblog-theme-minimal) in the theme directory. A site whose `theme` setting is `minimal` renders `default` after the upgrade until you install Minimal from **Admin → Themes** — the setting is left alone, so the site switches back the moment the theme is installed.
-
 A theme is code: once activated its templates render every page, including the admin, with the same template functions and data goblog's own templates get. The directory's validation checks that a theme is well-formed, not that it is benign, and a listing on goblog.live is a maintainer's approval, not a code audit — install only themes you trust, as with plugins.
 
 ## Plugins
@@ -160,12 +160,6 @@ A plugin implements the `plugin.Plugin` interface (`plugin/plugin.go`). Embed `p
 | `OnInit(db)` | Runs once at startup, after settings are seeded. |
 
 `ctx` is a `*plugin.HookContext` carrying the Gin context, the DB, the plugin's own settings, the template being rendered, and the existing template data. [goblog-plugin-hello](https://github.com/goblogplatform/goblog-plugin-hello) is the smallest complete example (as a WebAssembly plugin; the exports map one-to-one onto these hooks).
-
-#### Upgrading to 0.7.0
-The `analytics` and `socialicons` plugins are no longer compiled in; they are **Google Analytics** ([goblogplatform/goblog-plugin-analytics](https://github.com/goblogplatform/goblog-plugin-analytics)) and **Social Icons** ([goblogplatform/goblog-plugin-socialicons](https://github.com/goblogplatform/goblog-plugin-socialicons)) in the plugin directory. After upgrading, install the ones you use from **Admin → Plugins**. Their settings carry over (same plugin names and setting keys), so your measurement ID and profile URLs are back as soon as each plugin is installed; until then the snippet and the icon row are simply absent. Docker users: bind-mount `plugins/wasm/` first (see [Installing from the directory](#installing-from-the-directory)).
-
-#### Upgrading to 0.3.0
-The `scholar` plugin is no longer compiled in; it is now **Scholar Publications** in the plugin directory ([goblogplatform/goblog-plugin-scholar](https://github.com/goblogplatform/goblog-plugin-scholar)). After upgrading, install it from **Admin → Plugins**. Your Research page and the plugin's settings carry over (same plugin name and page type), so the page reappears in the nav as soon as the plugin is installed **and enabled** — its `enabled` setting defaults to `false` on a fresh install, while a site that already had `scholar.enabled=true` keeps it. Until then the page is hidden and `/research` answers "Page Not Available". The new plugin reads from the Semantic Scholar API only — if you were using Google Scholar, set `semantic_scholar_id` (the number at the end of your semanticscholar.org author URL) under **Admin → Settings → Scholar Publications**. Docker users: bind-mount `plugins/wasm/` first (see [Installing from the directory](#installing-from-the-directory)), or the installed plugin vanishes when the container restarts.
 
 ### Compiled-in plugins
 Live in `plugins/<name>/` as a normal Go package, and are registered in `main()`:

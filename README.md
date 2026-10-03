@@ -1,9 +1,11 @@
-# goblog
-[![Build and Test](https://github.com/compscidr/goblog/actions/workflows/push.yml/badge.svg)](https://github.com/compscidr/goblog/actions/workflows/push.yml)
-[![codecov](https://codecov.io/gh/compscidr/goblog/branch/main/graph/badge.svg)](https://codecov.io/gh/compscidr/goblog)
+# GoBlog
+[![Build and Test](https://github.com/goblogplatform/goblog/actions/workflows/push.yml/badge.svg)](https://github.com/goblogplatform/goblog/actions/workflows/push.yml)
+[![codecov](https://codecov.io/gh/goblogplatform/goblog/branch/main/graph/badge.svg)](https://codecov.io/gh/goblogplatform/goblog)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-A self-hosted blogging platform built with Go. Running at https://www.jasonernst.com
+GoBlog is a simple, self-hosted blogging platform written in Go, with Markdown posts, themes, plugins, comments and an admin dashboard. Official site: https://www.goblog.live
+
+Upgrading an existing site? See [UPGRADING.md](UPGRADING.md) for release-specific steps.
 
 ## Features
 
@@ -141,8 +143,6 @@ Full guide: [goblog.live/docs/writing-a-theme](https://www.goblog.live/docs/writ
 
 **Admin → Themes** browses the [theme directory](https://www.goblog.live/themes), installs a theme into `themes/installed/` (bind-mount it in Docker, set with `THEMES_INSTALLED_DIR`, or installs vanish on restart), activates it, updates it when the directory has a newer release, and removes it. The directory URL is the `theme_directory_url` setting; see [Publishing a theme](https://www.goblog.live/docs/publishing-a-theme) to publish one.
 
-**Upgrading to 0.7.0:** the `minimal` theme is no longer built in; it is [Minimal](https://github.com/goblogplatform/goblog-theme-minimal) in the theme directory. A site whose `theme` setting is `minimal` renders `default` after the upgrade until you install Minimal from **Admin → Themes** — the setting is left alone, so the site switches back the moment the theme is installed.
-
 A theme is code: once activated its templates render every page, including the admin, with the same template functions and data goblog's own templates get. The directory's validation checks that a theme is well-formed, not that it is benign, and a listing on goblog.live is a maintainer's approval, not a code audit — install only themes you trust, as with plugins.
 
 ## Plugins
@@ -160,12 +160,6 @@ A plugin implements the `plugin.Plugin` interface (`plugin/plugin.go`). Embed `p
 | `OnInit(db)` | Runs once at startup, after settings are seeded. |
 
 `ctx` is a `*plugin.HookContext` carrying the Gin context, the DB, the plugin's own settings, the template being rendered, and the existing template data. [goblog-plugin-hello](https://github.com/goblogplatform/goblog-plugin-hello) is the smallest complete example (as a WebAssembly plugin; the exports map one-to-one onto these hooks).
-
-#### Upgrading to 0.7.0
-The `analytics` and `socialicons` plugins are no longer compiled in; they are **Google Analytics** ([goblogplatform/goblog-plugin-analytics](https://github.com/goblogplatform/goblog-plugin-analytics)) and **Social Icons** ([goblogplatform/goblog-plugin-socialicons](https://github.com/goblogplatform/goblog-plugin-socialicons)) in the plugin directory. After upgrading, install the ones you use from **Admin → Plugins**. Their settings carry over (same plugin names and setting keys), so your measurement ID and profile URLs are back as soon as each plugin is installed; until then the snippet and the icon row are simply absent. Docker users: bind-mount `plugins/wasm/` first (see [Installing from the directory](#installing-from-the-directory)).
-
-#### Upgrading to 0.3.0
-The `scholar` plugin is no longer compiled in; it is now **Scholar Publications** in the plugin directory ([goblogplatform/goblog-plugin-scholar](https://github.com/goblogplatform/goblog-plugin-scholar)). After upgrading, install it from **Admin → Plugins**. Your Research page and the plugin's settings carry over (same plugin name and page type), so the page reappears in the nav as soon as the plugin is installed **and enabled** — its `enabled` setting defaults to `false` on a fresh install, while a site that already had `scholar.enabled=true` keeps it. Until then the page is hidden and `/research` answers "Page Not Available". The new plugin reads from the Semantic Scholar API only — if you were using Google Scholar, set `semantic_scholar_id` (the number at the end of your semanticscholar.org author URL) under **Admin → Settings → Scholar Publications**. Docker users: bind-mount `plugins/wasm/` first (see [Installing from the directory](#installing-from-the-directory)), or the installed plugin vanishes when the container restarts.
 
 ### Compiled-in plugins
 Live in `plugins/<name>/` as a normal Go package, and are registered in `main()`:
@@ -251,6 +245,13 @@ This is the same check goblog.live runs on every submission to the plugin direct
 [goblog.live/plugins](https://goblog.live/plugins) lists published plugins; `https://goblog.live/plugins/index.json` is the same list as JSON (name, version, author, license, `download_url`, `sha256`, `min_goblog_version`, `runtime`, `allowed_hosts`) and `/plugins/<name>.json` carries one plugin's README, changelog and release history — full field-by-field detail at [Directory formats](https://www.goblog.live/docs/directory-formats). Plugins are individual GitHub repositories with releases — see [Publishing a plugin](https://www.goblog.live/docs/publishing-a-plugin). To publish one, paste its URL at [goblog.live/plugins/submit](https://goblog.live/plugins/submit): it is validated on the spot (latest release, manifest, `plugin.wasm` loads and its name/version match) and listed once a maintainer approves it.
 
 The directory is the built-in `directory` plugin, so any goblog can host one: turn it on under **Admin → Settings → Plugin Directory** (`enabled` = `true`). Submissions are stored in the site's database and reviewed under **Admin → Plugins → Directory**, where you can also add repositories yourself, rebuild an entry or delist it. Listed plugins are re-checked every `refresh_minutes` (default 360) for new releases and star counts. The GitHub API allows 60 anonymous requests per hour; set `github_token` (any token, no scopes needed) to raise that to 5000 if you list more than a handful of plugins. README, changelog and release-note HTML is rendered by GitHub's markdown API and shown as-is on the directory pages; the admin sees it in the pending card before approving.
+
+## Sites running GoBlog
+
+- [goblog.live](https://www.goblog.live) — the official GoBlog site, with docs and the plugin and theme directories
+- [jasonernst.com](https://www.jasonernst.com)
+
+Running GoBlog yourself? [Open a pull request](https://github.com/goblogplatform/goblog/edit/main/README.md) adding your site to this list.
 
 ## Testing
 ```bash

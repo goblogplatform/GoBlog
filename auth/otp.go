@@ -112,7 +112,7 @@ func hashLoginCode(code string) string {
 // and falls back to "GoBlog" when the table or value is missing.
 func (a *Auth) siteTitle() string {
 	var title string
-	err := (*a.db).Table("settings").Where("key = ?", "site_title").Select("value").Scan(&title).Error
+	err := (*a.db).Table("settings").Where(map[string]any{"key": "site_title"}).Select("value").Scan(&title).Error
 	if err != nil || strings.TrimSpace(title) == "" {
 		return "GoBlog"
 	}

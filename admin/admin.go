@@ -571,7 +571,7 @@ func (a *Admin) GetSetting(c *gin.Context) {
 	key := c.Param("key")
 	log.Println("Getting setting: ", key)
 
-	err := (*a.db).Where("key = ?", key).First(&blog.Setting{}).Error
+	err := (*a.db).Where(map[string]any{"key": key}).First(&blog.Setting{}).Error
 	if err != nil {
 		c.JSON(http.StatusNotFound, "Setting not found")
 	} else {

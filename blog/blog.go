@@ -377,7 +377,7 @@ func (b *Blog) SettingValue(key, def string) string {
 		return def
 	}
 	var s Setting
-	if err := (*b.db).Where("key = ?", key).First(&s).Error; err != nil || s.Value == "" {
+	if err := (*b.db).Where(map[string]any{"key": key}).First(&s).Error; err != nil || s.Value == "" {
 		return def
 	}
 	return s.Value
@@ -515,7 +515,7 @@ func (b *Blog) isSelfHost(c *gin.Context, refHost string) bool {
 		siteHosts = append(siteHosts, strings.TrimSpace(h))
 	}
 	var siteURLSetting Setting
-	if err := (*b.db).Where("key = ?", "site_url").First(&siteURLSetting).Error; err == nil {
+	if err := (*b.db).Where(map[string]any{"key": "site_url"}).First(&siteURLSetting).Error; err == nil {
 		if siteURL, err := url.Parse(siteURLSetting.Value); err == nil {
 			siteHosts = append(siteHosts, siteURL.Host)
 		}
@@ -1663,7 +1663,7 @@ func (b *Blog) recordComment(ip string) {
 // row (or a settings table that hasn't been seeded) fails closed.
 func (b *Blog) CommentsRequireLogin() bool {
 	var setting Setting
-	if err := (*b.db).Where("key = ?", "comments_require_login").First(&setting).Error; err != nil {
+	if err := (*b.db).Where(map[string]any{"key": "comments_require_login"}).First(&setting).Error; err != nil {
 		return true
 	}
 	return setting.Value != "false"

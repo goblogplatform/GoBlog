@@ -9,7 +9,7 @@ type PostType struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 	DeletedAt   *time.Time `sql:"index" json:"deleted_at,omitempty"`
 	Name        string     `json:"name"`
-	Slug        string     `gorm:"uniqueIndex" json:"slug"`
+	Slug        string     `gorm:"uniqueIndex:,length:191" json:"slug"` // length: see Page.Slug
 	Description string     `sql:"type:text;" json:"description"`
 }
 

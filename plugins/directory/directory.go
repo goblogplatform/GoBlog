@@ -206,7 +206,7 @@ func ensurePage(db *gorm.DB, def gplugin.PageDefinition) error {
 // in the index is built from it.
 func siteURL(db *gorm.DB) string {
 	var s blog.Setting
-	if err := db.Where("key = ?", "site_url").First(&s).Error; err != nil {
+	if err := db.Where(map[string]any{"key": "site_url"}).First(&s).Error; err != nil {
 		return ""
 	}
 	return strings.TrimSpace(s.Value)

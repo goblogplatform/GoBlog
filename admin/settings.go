@@ -51,6 +51,7 @@ var settingGroups = []settingGroupDef{
 		{Key: "site_tags", Label: "Site tags", Help: "Comma-separated keywords for the site's meta tags."},
 		{Key: "site_description", Label: "Site description", Help: "One or two sentences about the site, shown by search engines and link previews for pages without their own description."},
 		{Key: "site_image", Label: "Site image", Help: "Picture shown in link previews (Open Graph) for pages without their own, and as the fallback image in a post's structured data."},
+		{Key: "site_is_person", Label: "This site is about a person", Help: "Tells search engines the home page belongs to a person: the site title is their name, and the profiles set in the Social Icons plugin are theirs. Leave off for a project or an organisation."},
 		{Key: "site_url", Label: "Site URL", Help: "Public address of this site, used for links in feeds, emails and the sitemap."},
 		{Key: "robots_tag", Label: "Robots tag", Help: "Value of the robots meta tag, for example \"index, follow\"."},
 	}},

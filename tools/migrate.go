@@ -321,10 +321,10 @@ func seedDefaultPostType(db *gorm.DB) {
 // overwriting existing values.
 func seedDefaultSettings(db *gorm.DB) {
 	defaults := []blog.Setting{
-		{Key: "site_title", Type: "text", Value: "Jason Ernst"},
-		{Key: "site_subtitle", Type: "text", Value: "Software Engineer"},
-		{Key: "site_logo_letters", Type: "text", Value: "JE"},
-		{Key: "site_tags", Type: "text", Value: "Decentralization, Mesh Net"},
+		{Key: "site_title", Type: "text", Value: "My Blog"},
+		{Key: "site_subtitle", Type: "text", Value: ""},
+		{Key: "site_logo_letters", Type: "text", Value: "MB"},
+		{Key: "site_tags", Type: "text", Value: ""},
 		{Key: "landing_page_image", Type: "file", Value: "/img/profile.png"},
 		{Key: "favicon", Type: "file", Value: "/img/favicon.ico"},
 		{Key: "custom_header_code", Type: "textarea", Value: ""},
@@ -599,15 +599,9 @@ func seedDefaultPages(db *gorm.DB) {
 
 	log.Println("Seeding default pages")
 
-	aboutContent := `I'm currently Principal Software Engineer at a startup working on mobile networks on phones. At the University of Guelph in Canada I hold adjunct Professor status and serve on the committee of several graduate students who are studying wireless networks and occasionally still co-publish research papers.
+	aboutContent := `This is your About page. Tell your readers who you are and what you write about.
 
-Prior to this I was a Senior Software Engineer at two different robotics startups in San Francisco (Rapid Robotics and Osaro). I was also the CTO and first developer at a startup in Vancouver called RightMesh which was building a mesh networking library for Android phones. During this time I was also an adjunct professor at the University of Guelph and was the industrial PI of a [$2.13M MITACS grant to improve connectivity in Northern Canada](https://betakit.com/u-of-guelph-left-investing-2-13-million-in-rightmesh-project-improving-northern-connectivity/), specifically Rigolet. RightMesh raised $30M in an ICO in 2018.
-
-Before that I was the CTO of [Redtree Robotics](https://montrealgazette.com/business/local-business/montreal-startup-ecosystem-fertile-playground-for-entrepreneurs) which was working on a robotics hardware software platform to enable plug-and-play swarm robotics. I started this company with a friend during grad school and we raised some seed funding from Real Ventures.
-
-I've won, sponsored, and mentored [hackathons](https://uwaterloo.ca/news/waterloo-student-wins-national-hackathon). I love to give [talks](https://www.bbc.co.uk/programmes/w3csvpcr) and present papers.
-
-I also enjoy driving, working on cars, video games, contributing to [open source](https://github.com/compscidr), cycling, running, and [travel](https://nomadlist.com/@compscidr).
+Edit it under **Admin → Pages**.
 
 [Tags](/tags) [Archives](/archives)`
 

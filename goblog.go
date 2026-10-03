@@ -451,8 +451,8 @@ func main() {
 	// inline script, where the redirect_uri escaping was wrong (#631).
 	router.GET("/login/github", goblog._blog.GithubLogin)
 	router.GET("/wizard", goblog._wizard.SaveToken)
-	router.POST("/wizard_db", updateDB)
-	router.POST("/test_db", testDB)
+	router.POST("/wizard_db", goblog.installOnly, updateDB)
+	router.POST("/test_db", goblog.installOnly, testDB)
 	router.POST("/api/v1/upload", goblog._admin.UploadFile)
 	router.POST("/api/v1/preview", goblog._admin.Preview)
 	router.PATCH("/api/v1/settings", goblog._admin.UpdateSettings)
@@ -638,6 +638,18 @@ func requireJSON() gin.HandlerFunc {
 		if err != nil || !(mt == "application/json" || (mt == "multipart/form-data" && c.Request.URL.Path == "/api/v1/upload")) {
 			c.AbortWithStatusJSON(http.StatusUnsupportedMediaType, gin.H{"error": "Content-Type must be application/json"})
 		}
+	}
+}
+
+// installOnly refuses the database wizard's endpoints once the site is
+// installed, that is, once it has a database and an admin. They take no
+// credentials because during an install there is nobody to hold any, so
+// without this they stay open for good: /wizard_db rewrites .env with
+// whatever database the request names, and /test_db opens any file or host
+// it is given.
+func (g *goblog) installOnly(c *gin.Context) {
+	if !g._wizard.IsDbNil() && !g._auth.IsWizardMode(c) {
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "This site is already installed"})
 	}
 }
 

@@ -13,15 +13,36 @@
         <div class="card border-0 shadow my-5">
             <div class="card-body p-5" style="min-height: 600px;">
                 <h1 class="fw-light">Goblog Install Wizard</h1>
-                <h5>GitHub OAuth</h5>
+                <h5>Create your admin account</h5>
                 {{ if .errors }}
                 <div class="alert alert-danger" role="alert">
                     {{ .errors }}
                 </div>
                 {{ end }}
-                <form action="wizard" method="GET" class="py4">
-                    <p>You must go to <a href="https://github.com/settings/developers" target="_blank">https://github.com/settings/developers</a>
-                    and create a "New OAuth App" to hook this site up to github for logins.
+                <p>This is the account you will sign in with to write posts and manage the site.</p>
+                <form action="/wizard/admin" method="POST" class="py-2" style="max-width: 480px;">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email:</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ .email }}" autocomplete="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password (at least 10 characters):</label>
+                        <input type="password" class="form-control" id="password" name="password" minlength="10" autocomplete="new-password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password_confirm" class="form-label">Password again:</label>
+                        <input type="password" class="form-control" id="password_confirm" name="password_confirm" minlength="10" autocomplete="new-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create account and finish</button>
+                </form>
+                <p class="text-muted small">The email is only your sign-in name; goblog does not send mail to it. If you forget the password, run <code>goblog reset-admin-password</code> on the server.</p>
+
+                <hr class="my-4">
+                <details>
+                <summary><strong>Or sign in with GitHub instead</strong></summary>
+                <form action="wizard" method="GET" class="py-3">
+                    <p>Go to <a href="https://github.com/settings/developers" target="_blank">https://github.com/settings/developers</a>
+                    and create a "New OAuth App" to hook this site up to GitHub for logins.
                     </p>
                     <p>Set the callback url to the same URL as this page with <code>/login</code> appended to it.</p>
                     <div class="mb-3 row">
@@ -34,14 +55,13 @@
                             <input type="text" class="form-control" id="client_secret" name="client_secret" placeholder="">
                         </div>
                     </div>
-
-                    <h5>Create Admin Account</h5>
-                    <p>Once you setup the OAuth app, login with GitHub to test it out. The user you login with will be the
-                    admin user for this site.</p>
+                    <p>The GitHub user you sign in with becomes the admin of this site.</p>
                     <button id="github-button" class="btn btn-social btn-github" type="submit">
                         <i class="fab fa-github fa-1x"></i> Sign in with GitHub
                     </button>
                 </form>
+                </details>
+                <div class="mb-4"></div>
                 <div class="version text-center">{{ template "_powered_by" . }}</div>
             </div>
         </div>

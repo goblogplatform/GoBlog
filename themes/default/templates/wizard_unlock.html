@@ -1,0 +1,38 @@
+<html>
+<head>
+    <title>Goblog Install Wizard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.8/css/bootstrap.min.css" integrity="sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-social/5.1.1/bootstrap-social.min.css" integrity="sha512-f8mUMCRNrJxPBDzPJx3n+Y5TC5xp6SmStstEfgsDXZJTcxBakoB5hvPLhAfJKa9rCvH+n3xpJ2vQByxLk4WP2g==" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" />
+    <link rel="stylesheet" href="/css/wizard.css"/>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.8/js/bootstrap.min.js" integrity="sha512-nKXmKvJyiGQy343jatQlzDprflyB5c+tKCzGP3Uq67v+lmzfnZUi/ZT+fc6ITZfSC5HhaBKUIvr/nTLCV+7F+Q==" crossorigin="anonymous"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="container">
+    <div class="card border-0 shadow my-5">
+        <div class="card-body p-5" style="min-height: 600px;">
+            <h1 class="fw-light">Goblog Install Wizard</h1>
+            <h5>Setup code</h5>
+            {{ if .errors }}
+            <div class="alert alert-danger" role="alert">
+                {{ .errors }}
+            </div>
+            {{ end }}
+            <p>To make sure this site is being set up by whoever runs the server, goblog printed a setup code to its log when it started. Look for a line like <code>GoBlog setup code: ABCD-EFGH-JKMN</code>.</p>
+            <p>With Docker: <code>docker logs &lt;container&gt; 2&gt;&amp;1 | grep "setup code"</code></p>
+            <form action="/wizard/unlock" method="POST" class="py-2" style="max-width: 420px;">
+                <div class="mb-3">
+                    <label for="setup_code" class="form-label">Setup code:</label>
+                    <input type="text" class="form-control" id="setup_code" name="setup_code" placeholder="XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" required autofocus>
+                </div>
+                <button type="submit" class="btn btn-primary">Continue</button>
+            </form>
+            <p class="text-muted small mt-4">The code changes every time goblog restarts. If this page comes back after you enter the right code, your browser is not keeping the session cookie: goblog marks it Secure, which browsers only accept over https or on localhost. Use one of those, or start goblog with <code>SESSION_SECURE=false</code>.</p>
+            <div class="version text-center">{{ template "_powered_by" . }}</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1418,7 +1418,21 @@ func (b *Blog) Login(c *gin.Context) {
 
 	clientID := os.Getenv("client_id")
 	next := SafeNext(c.Query("next"))
-	b.Render(c, http.StatusOK, "login.html", gin.H{
+	// Asked through an optional interface so the IAuth mocks need not know
+	// about password login.
+	passwordLogin := false
+	if p, ok := b.auth.(interface{ PasswordLoginEnabled() bool }); ok {
+		passwordLogin = p.PasswordLoginEnabled()
+	}
+	// When a password is the only way in, the page is goblog's own rather
+	// than the theme's login.html, which may predate password login. For the
+	// same reason /login?password=1 always reaches the form, and a failed
+	// attempt comes back to it.
+	page := "login.html"
+	if passwordLogin && (c.Query("password") != "" || (clientID == "" && !b.auth.EmailLoginEnabled())) {
+		page = "_password_login_page"
+	}
+	b.Render(c, http.StatusOK, page, gin.H{
 		"logged_in": b.auth.IsLoggedIn(c),
 		"is_admin":  b.auth.IsAdmin(c),
 		// The only page whose markup uses .btn-social, so the only one that
@@ -1432,10 +1446,13 @@ func (b *Blog) Login(c *gin.Context) {
 		"version":             b.Version,
 		"title":               "Login",
 		"email_login_enabled": b.auth.EmailLoginEnabled(),
-		"recent":              b.GetLatest(),
-		"admin_page":          false,
-		"settings":            b.GetSettings(),
-		"nav_pages":           b.GetNavPages(),
+		// The password form is the shared _password_login partial.
+		"password_login_enabled": passwordLogin,
+		"login_error":            c.Query("login_error"),
+		"recent":                 b.GetLatest(),
+		"admin_page":             false,
+		"settings":               b.GetSettings(),
+		"nav_pages":              b.GetNavPages(),
 	})
 }
 

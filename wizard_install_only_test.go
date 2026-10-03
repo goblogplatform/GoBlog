@@ -11,6 +11,8 @@ import (
 	"goblog/tools"
 	"goblog/wizard"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -18,21 +20,45 @@ import (
 
 // TestInstallOnly: the database wizard's endpoints are for installing. On a
 // site that has a database and an admin, a request to them must change
-// nothing; before that (no database yet, or a database with no admin) the
-// wizard still has to work.
+// nothing. Before that (no database yet, or a database with no admin) the
+// wizard has to work, but only for a browser that entered the setup code.
 func TestInstallOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	post := func(g *goblog, path string) *httptest.ResponseRecorder {
+	code, err := auth.NewSetupCode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(auth.ClearSetupCode)
+	// post sends the wizard's database form, first entering the setup code
+	// when unlock is true.
+	postAs := func(g *goblog, path string, unlock bool) *httptest.ResponseRecorder {
 		router := gin.New()
+		router.Use(sessions.Sessions("session", cookie.NewStore([]byte("test"))))
 		router.SetHTMLTemplate(templateWithErrors(t))
+		router.POST("/wizard/unlock", g.unlockSetup)
 		router.POST("/wizard_db", g.installOnly, updateDB)
 		router.POST("/test_db", g.installOnly, testDB)
-		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader("dbtype=sqlite&sqlite_file=other.db"))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		form := func(path, body string) *http.Request {
+			req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			return req
+		}
+		req := form(path, "dbtype=sqlite&sqlite_file=other.db")
+		if unlock {
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, form("/wizard/unlock", "setup_code="+code))
+			if w.Code != http.StatusSeeOther {
+				t.Fatalf("entering the setup code: status %d, want 303", w.Code)
+			}
+			for _, c := range w.Result().Cookies() {
+				req.AddCookie(c)
+			}
+		}
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 		return w
 	}
+	post := func(g *goblog, path string) *httptest.ResponseRecorder { return postAs(g, path, true) }
 	app := func(db *gorm.DB) *goblog {
 		a := auth.New(db, "test")
 		wz := wizard.New(db, "test")
@@ -91,6 +117,24 @@ func TestInstallOnly(t *testing.T) {
 		t.Chdir(t.TempDir())
 		if w := post(app(openDB()), "/wizard_db"); w.Code != http.StatusSeeOther {
 			t.Errorf("POST /wizard_db mid-install: status %d, want 303", w.Code)
+		}
+	})
+
+	// Somebody else who finds the site before its owner has finished.
+	t.Run("without the setup code", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		for name, g := range map[string]*goblog{"no database yet": app(nil), "mid-install": app(openDB())} {
+			for _, path := range []string{"/wizard_db", "/test_db"} {
+				if w := postAs(g, path, false); w.Code != http.StatusForbidden {
+					t.Errorf("%s: POST %s without the setup code: status %d, want 403", name, path, w.Code)
+				}
+			}
+		}
+		if _, err := os.Stat(".env"); err == nil {
+			t.Error(".env was written without the setup code")
+		}
+		if _, err := os.Stat("other.db"); err == nil {
+			t.Error("/test_db created a file without the setup code")
 		}
 	})
 }

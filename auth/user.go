@@ -7,13 +7,15 @@ import (
 
 // Values for BlogUser.Provider.
 const (
-	ProviderGitHub = "github"
-	ProviderEmail  = "email"
+	ProviderGitHub   = "github"
+	ProviderEmail    = "email"
+	ProviderPassword = "password"
 )
 
 // BlogUser is a user of the blog from any login provider. The (Provider,
 // ProviderID) pair identifies the user in the external system: the GitHub
-// numeric id as a string, or the normalised email address. ID is an internal
+// numeric id as a string, or the normalised email address (for both email
+// and password users). ID is an internal
 // key assigned by the database. The only role that matters is admin (see
 // AdminUser); otherwise users exist for comments.
 type BlogUser struct {
@@ -25,8 +27,12 @@ type BlogUser struct {
 	Name       string `json:"name"`
 	Email      string `json:"email"`
 	// AccessToken is the session credential: the GitHub OAuth token for
-	// GitHub users, a random token for email users. Never sent to clients.
+	// GitHub users, a random token for email and password users. Never sent
+	// to clients.
 	AccessToken string `json:"-"`
+	// PasswordHash is the bcrypt hash of a password user's password; empty
+	// for every other provider. Never sent to clients.
+	PasswordHash string `json:"-"`
 }
 
 // DisplayName is the name to show for the user where one is needed, e.g. as

@@ -1597,3 +1597,37 @@ func TestAdminAPI_StillAnswersJSON(t *testing.T) {
 		}
 	}
 }
+
+// TestUpdatePostKeepsSlug: the admin sends the stored slug back on every
+// save; saving must not escape it again (%3A grew to %253A, %25253A, ...),
+// and an already over-escaped slug comes back down to one layer.
+func TestUpdatePostKeepsSlug(t *testing.T) {
+	db, _ := gorm.Open(sqlite.Open(":memory:"))
+	db.AutoMigrate(&auth.BlogUser{}, &blog.PostType{}, &blog.Post{}, &blog.Tag{}, &blog.Comment{}, &blog.Page{}, &blog.PostRevision{})
+	pt := blog.PostType{Name: "Post", Slug: "posts"}
+	db.Create(&pt)
+	post := blog.Post{Title: "A: b", Slug: "A%3A-b", Content: "hi", PostTypeID: pt.ID}
+	db.Create(&post)
+	a := &Auth{}
+	b := blog.New(db, a, "test")
+	ad := admin.New(db, a, &b, "test")
+	router := gin.New()
+	router.PATCH("/api/v1/posts", ad.UpdatePost)
+
+	for _, sent := range []string{"A%3A-b", "A%3A-b", "A%25253A-b"} {
+		body, _ := json.Marshal(blog.Post{ID: post.ID, Title: "A: b", Slug: sent, Content: "hi again", PostTypeID: pt.ID})
+		a.On("IsAdmin", mock.Anything).Return(true).Once()
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("PATCH", "/api/v1/posts", bytes.NewBuffer(body))
+		req.Header.Add("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		if w.Code != http.StatusAccepted {
+			t.Fatalf("PATCH slug %q: status %d: %s", sent, w.Code, w.Body.String())
+		}
+		var got blog.Post
+		db.First(&got, post.ID)
+		if got.Slug != "A%3A-b" {
+			t.Fatalf("after saving slug %q the stored slug is %q, want A%%3A-b", sent, got.Slug)
+		}
+	}
+}

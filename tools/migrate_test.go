@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMigration(t *testing.T) {
@@ -345,6 +346,48 @@ func TestMigrationPrunesBlankUsers(t *testing.T) {
 			if got[i] != want[i] {
 				t.Fatalf("run %d: want ids %v, got %v", run, want, got)
 			}
+		}
+	}
+}
+
+// TestMigrationRepairsOverEscapedSlugs: slugs that earlier versions escaped
+// again on every save come back to one layer; healthy slugs and the posts'
+// UpdatedAt are left alone.
+func TestMigrationRepairsOverEscapedSlugs(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	if err := tools.Migrate(db); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+	updated := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	slugs := map[string]string{
+		"A%25253A-b": "A%3A-b",
+		"C%253A-d":   "C%3A-d",
+		"E%3A-f":     "E%3A-f",
+		"plain.slug": "plain.slug",
+	}
+	ids := map[string]uint{}
+	for stored := range slugs {
+		p := blog.Post{Title: stored, Slug: stored, Content: "hi", PostTypeID: 1, UpdatedAt: updated}
+		db.Create(&p)
+		ids[stored] = p.ID
+	}
+
+	if err := tools.Migrate(db); err != nil {
+		t.Fatalf("second migration failed: %v", err)
+	}
+	for stored, want := range slugs {
+		var got blog.Post
+		db.First(&got, ids[stored])
+		if got.Slug != want {
+			t.Errorf("slug %q became %q, want %q", stored, got.Slug, want)
+		}
+		if !got.UpdatedAt.Equal(updated) {
+			t.Errorf("slug %q: UpdatedAt changed to %v", stored, got.UpdatedAt)
 		}
 	}
 }

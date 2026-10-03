@@ -89,7 +89,6 @@ type AccessTokenResponse struct {
 
 func (w *Wizard) LoginCode(c *gin.Context) error {
 	code := c.Query("code")
-	log.Println("LOGIN CODE: " + code)
 	if w.IsDbNil() {
 		return errors.New("db is nil")
 	}
@@ -134,9 +133,6 @@ func (w *Wizard) LoginCode(c *gin.Context) error {
 	if err != nil {
 		return errors.New("Error requesting access token from github: " + err.Error())
 	}
-
-	bodyString := string(bodyBytes)
-	fmt.Println("post:\n", bodyString) //todo: remove - just for debugging
 
 	if resp.StatusCode != http.StatusOK {
 		return errors.New("status was not 200: but was, " + strconv.Itoa(resp.StatusCode))

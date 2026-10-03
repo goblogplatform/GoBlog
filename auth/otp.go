@@ -40,28 +40,35 @@ const (
 // It is referenced from Auth via a pointer (see Auth.sendLimiter) because
 // Auth values are copied around, and every copy must share one limiter.
 type ipLimiter struct {
-	mu   sync.Mutex
-	hits map[string][]time.Time
+	mu     sync.Mutex
+	hits   map[string][]time.Time
+	limit  int
+	window time.Duration
 }
 
+// newIPLimiter returns the limiter for POST /api/login/email.
 func newIPLimiter() *ipLimiter {
-	return &ipLimiter{hits: make(map[string][]time.Time)}
+	return newLimiter(loginCodeSendsPerIP, loginCodeSendsWindow)
+}
+
+func newLimiter(limit int, window time.Duration) *ipLimiter {
+	return &ipLimiter{hits: make(map[string][]time.Time), limit: limit, window: window}
 }
 
 // allow reports whether ip may make another request at now, recording the
-// attempt if so. Timestamps older than loginCodeSendsWindow are pruned first,
-// so the limit only ever reflects the trailing window.
+// attempt if so. Timestamps older than the window are pruned first, so the
+// limit only ever reflects the trailing window.
 func (l *ipLimiter) allow(ip string, now time.Time) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	cutoff := now.Add(-loginCodeSendsWindow)
+	cutoff := now.Add(-l.window)
 	kept := l.hits[ip][:0]
 	for _, t := range l.hits[ip] {
 		if t.After(cutoff) {
 			kept = append(kept, t)
 		}
 	}
-	if len(kept) >= loginCodeSendsPerIP {
+	if len(kept) >= l.limit {
 		l.hits[ip] = kept
 		return false
 	}

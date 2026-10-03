@@ -55,10 +55,16 @@ func TestIsAdmin_NoAdminUser_ReturnsFalse(t *testing.T) {
 	}
 }
 
-func TestIsWizardMode_NoAdminUser_ReturnsTrue(t *testing.T) {
+// With no admin, wizard mode additionally needs the setup code; see
+// TestSetupCode in setup_password_test.go.
+func TestIsWizardMode_NoAdminUser_LockedWithoutSetupCode(t *testing.T) {
 	a, _ := newAuth(t)
-	if !a.IsWizardMode(newCtx()) {
-		t.Fatal("IsWizardMode must be true when no admin_users row exists")
+	if _, err := auth.NewSetupCode(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(auth.ClearSetupCode)
+	if a.IsWizardMode(newCtx()) {
+		t.Fatal("IsWizardMode must be false for a browser that has not entered the setup code")
 	}
 }
 

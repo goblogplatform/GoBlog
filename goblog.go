@@ -89,10 +89,104 @@ func attemptConnectDb() *gorm.DB {
 }
 
 // depending on if the env file is present or not, we will show the wizard or the main site
+// installed reports whether the install is finished: GitHub login is
+// configured in .env, or the site has an admin (a password admin needs
+// nothing in .env).
+func (g *goblog) installed() bool {
+	return isAuthConfigured() || (!g._wizard.IsDbNil() && g._auth.AdminExists())
+}
+
+// wizardPage renders one of the install wizard's pages or, for a browser
+// that has not entered the setup code, the page that asks for it.
+func (g *goblog) wizardPage(c *gin.Context, name string, data gin.H) {
+	if !auth.SetupUnlocked(c) {
+		g.unlockPage(c, "")
+		return
+	}
+	c.HTML(http.StatusOK, name, data)
+}
+
+func (g *goblog) unlockPage(c *gin.Context, errors string) {
+	c.HTML(http.StatusOK, "wizard_unlock.html", gin.H{
+		"version": Version,
+		"title":   "GoBlog Install Wizard",
+		"errors":  errors,
+	})
+}
+
+// wizardLanding is wizardPage for the settings and auth steps, which the
+// wizard package renders.
+func (g *goblog) wizardLanding(c *gin.Context) {
+	if !auth.SetupUnlocked(c) {
+		g.unlockPage(c, "")
+		return
+	}
+	g._wizard.Landing(c)
+}
+
+// unlockSetup handles the setup code form (POST /wizard/unlock).
+func (g *goblog) unlockSetup(c *gin.Context) {
+	if err := auth.UnlockSetup(c, c.PostForm("setup_code")); err != nil {
+		g.unlockPage(c, err.Error())
+		return
+	}
+	c.Redirect(http.StatusSeeOther, "/")
+}
+
+// setupOnly lets a wizard request through only from a browser that has
+// entered the setup code.
+func (g *goblog) setupOnly(c *gin.Context) {
+	if !auth.SetupUnlocked(c) {
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Enter the setup code first"})
+	}
+}
+
+// createAdmin handles the wizard's last step (POST /wizard/admin): the
+// site's first admin, with a password, which needs no GitHub OAuth app
+// (#654). It is the end of the install: the browser is logged in and sent
+// to the admin dashboard.
+func (g *goblog) createAdmin(c *gin.Context) {
+	fail := func(msg string) {
+		g.wizardPage(c, "wizard_auth.html", gin.H{
+			"version": Version,
+			"title":   "GoBlog Install Wizard",
+			"errors":  msg,
+			"email":   c.PostForm("email"),
+		})
+	}
+	if g._wizard.IsDbNil() {
+		c.Redirect(http.StatusSeeOther, "/")
+		return
+	}
+	if g._auth.AdminExists() {
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "This site is already installed"})
+		return
+	}
+	if !auth.SetupUnlocked(c) {
+		g.unlockPage(c, "")
+		return
+	}
+	if c.PostForm("password") != c.PostForm("password_confirm") {
+		fail("The two passwords do not match.")
+		return
+	}
+	user, err := g._auth.CreatePasswordAdmin(c.PostForm("email"), c.PostForm("password"))
+	if err != nil {
+		fail("Couldn't create the admin account: " + err.Error())
+		return
+	}
+	if err := g._auth.StartSession(c, user); err != nil {
+		log.Println("Couldn't save the session: " + err.Error())
+	}
+	auth.ClearSetupCode()
+	g.addRoutes()
+	c.Redirect(http.StatusSeeOther, "/admin")
+}
+
 func (g *goblog) rootHandler(c *gin.Context) {
 	if !envFilePresent() {
 		log.Println("Root handler: No .env file found")
-		c.HTML(http.StatusOK, "wizard_db.html", gin.H{
+		g.wizardPage(c, "wizard_db.html", gin.H{
 			"version": Version,
 			"title":   "GoBlog Install Wizard",
 		})
@@ -101,7 +195,7 @@ func (g *goblog) rootHandler(c *gin.Context) {
 		log.Println("Root handler:  Found .env file")
 		envFile, err := godotenv.Read(datadir.Path(".env"))
 		if err != nil {
-			c.HTML(http.StatusOK, "wizard_db.html", gin.H{
+			g.wizardPage(c, "wizard_db.html", gin.H{
 				"version": Version,
 				"title":   "GoBlog Install Wizard",
 				"errors":  "Couldn't read the .env file: " + err.Error(),
@@ -111,7 +205,7 @@ func (g *goblog) rootHandler(c *gin.Context) {
 		// detect if the database hasn't be configured yet
 		if !validDatabaseType(envFile["database"]) {
 			log.Println("Root handler:  Database is not configured, redirecting to db wizard")
-			c.HTML(http.StatusOK, "wizard_db.html", gin.H{
+			g.wizardPage(c, "wizard_db.html", gin.H{
 				"version": Version,
 				"title":   "GoBlog Install Wizard",
 			})
@@ -124,7 +218,7 @@ func (g *goblog) rootHandler(c *gin.Context) {
 			if db == nil {
 				log.Println("Root handler: Couldn't connect to the database, showing db wizard")
 				// show the wizard and get them to re-enter the db info with an error message
-				c.HTML(http.StatusOK, "wizard_db.html", gin.H{
+				g.wizardPage(c, "wizard_db.html", gin.H{
 					"version": Version,
 					"title":   "GoBlog Install Wizard",
 					"errors":  "Couldn't connect to the database",
@@ -135,7 +229,7 @@ func (g *goblog) rootHandler(c *gin.Context) {
 			if err != nil {
 				log.Println("Root handler: Couldn't migrate the database: " + err.Error())
 				// show the wizard with an error message saying the db isn't compatible and let them file a gh ticket
-				c.HTML(http.StatusOK, "wizard_db.html", gin.H{
+				g.wizardPage(c, "wizard_db.html", gin.H{
 					"version": Version,
 					"title":   "GoBlog Install Wizard",
 					"errors":  "Failed to Migrate the database: " + err.Error(),
@@ -153,15 +247,15 @@ func (g *goblog) rootHandler(c *gin.Context) {
 			}
 			g._registry.StartScheduledJobs()
 
-			if !isAuthConfigured() {
-				g._wizard.Landing(c)
+			if !g.installed() {
+				g.wizardLanding(c)
 				return
 			}
 			g.addRoutes()
 			g._blog.Home(c)
 		} else {
-			if !isAuthConfigured() {
-				g._wizard.Landing(c)
+			if !g.installed() {
+				g.wizardLanding(c)
 				return
 			}
 			g._blog.Home(c)
@@ -173,7 +267,7 @@ func (g *goblog) rootHandler(c *gin.Context) {
 func (g *goblog) loginHandler(c *gin.Context) {
 	if !envFilePresent() {
 		log.Println("Root handler: No .env file found")
-		c.HTML(http.StatusOK, "wizard_db.html", gin.H{
+		g.wizardPage(c, "wizard_db.html", gin.H{
 			"version": Version,
 			"title":   "GoBlog Install Wizard",
 		})
@@ -181,23 +275,28 @@ func (g *goblog) loginHandler(c *gin.Context) {
 	}
 	if g._wizard.IsDbNil() {
 		log.Println("Wizard db is nil in loginHandler")
-		c.HTML(http.StatusOK, "wizard_db.html", gin.H{
+		g.wizardPage(c, "wizard_db.html", gin.H{
 			"version": Version,
 			"title":   "GoBlog Install Wizard",
 			"errors":  "Database is not configured",
 		})
 		return
 	}
-	if !isAuthConfigured() {
+	if !g.installed() {
+		if !auth.SetupUnlocked(c) {
+			g.wizardPage(c, "wizard_auth.html", nil) // asks for the setup code
+			return
+		}
 		err := g._wizard.LoginCode(c)
 		if err != nil {
-			c.HTML(http.StatusOK, "wizard_auth.html", gin.H{
+			g.wizardPage(c, "wizard_auth.html", gin.H{
 				"version": Version,
 				"title":   "GoBlog Install Wizard",
 				"errors":  "Couldn't get the login code: " + err.Error(),
 			})
 			return
 		} else {
+			auth.ClearSetupCode() // the wizard just created the admin
 			g.addRoutes()
 			g._blog.Home(c)
 		}
@@ -215,6 +314,9 @@ func main() {
 	// Subcommands run and exit before any .env or database work.
 	if len(os.Args) > 1 && os.Args[1] == "validate-plugin" {
 		os.Exit(runValidatePlugin(os.Args[2:], os.Stdout, os.Stderr))
+	}
+	if len(os.Args) > 1 && os.Args[1] == "reset-admin-password" {
+		os.Exit(runResetAdminPassword(os.Args[2:], os.Stdout, os.Stderr))
 	}
 	log.Println("Starting blog version: ", Version)
 	if dir := datadir.Dir(); dir != "" {
@@ -262,9 +364,9 @@ func main() {
 				log.Println("Couldn't close the .env file: " + err.Error())
 				return
 			}
-			log.Println("New Session key: ", sessionKey)
+			log.Println("Created a new session key")
 		} else {
-			log.Println("Found Session key: ", sessionKey)
+			log.Println("Found the session key")
 		}
 
 		// database is configured, lets try to connect now
@@ -295,6 +397,19 @@ func main() {
 	if sender, ok := mail.NewSMTPSenderFromEnv(); ok {
 		log.Println("SMTP configured; email login enabled")
 		_auth.Mailer = sender
+	}
+	// No admin yet means the install wizard is (or will be) open, and it
+	// asks for this code: reading the log is the proof of owning the server.
+	if db == nil || !_auth.AdminExists() {
+		code, err := auth.NewSetupCode()
+		if err != nil {
+			log.Println("Couldn't make a setup code: " + err.Error())
+			return
+		}
+		log.Println("==========================================================")
+		log.Println("  GoBlog setup code: " + code)
+		log.Println("  The install wizard asks for it. It changes on restart.")
+		log.Println("==========================================================")
 	}
 	_blog := blog.New(db, &_auth, Version)
 	_admin := admin.New(db, &_auth, &_blog, Version)
@@ -367,7 +482,6 @@ func main() {
 	store.Options(sessionOptions(os.Getenv("SESSION_SECURE")))
 	hostname, err := os.Hostname()
 	router.Use(sessions.Sessions(hostname, store))
-	log.Println("Session key: ", sessionKey)
 	log.Println("Hostname: ", hostname)
 	// Load templates from the active theme directory, falling back to "default".
 	// activeTheme is read by the static handler on every /theme/* request and
@@ -450,7 +564,9 @@ func main() {
 	// Starting GitHub's OAuth flow belongs here rather than in each theme's
 	// inline script, where the redirect_uri escaping was wrong (#631).
 	router.GET("/login/github", goblog._blog.GithubLogin)
-	router.GET("/wizard", goblog._wizard.SaveToken)
+	router.GET("/wizard", goblog.setupOnly, goblog._wizard.SaveToken)
+	router.POST("/wizard/unlock", goblog.unlockSetup)
+	router.POST("/wizard/admin", goblog.createAdmin)
 	router.POST("/wizard_db", goblog.installOnly, updateDB)
 	router.POST("/test_db", goblog.installOnly, testDB)
 	router.POST("/api/v1/upload", goblog._admin.UploadFile)
@@ -515,6 +631,9 @@ func (g *goblog) addRoutesInner() {
 	// itself, against a state it minted (#637).
 	g.router.POST("/api/login/email", g._auth.SendLoginCodeHandler)
 	g.router.POST("/api/login/email/verify", g._auth.VerifyLoginCodeHandler)
+	g.router.POST("/login/password", func(c *gin.Context) {
+		g._auth.PasswordLogin(c, blog.SafeNext(c.PostForm("next")))
+	})
 	g.router.POST("/api/v1/posts", g._admin.CreatePost)
 	g.router.PATCH("/api/v1/posts", g._admin.UpdatePost)
 	g.router.PATCH("/api/v1/publish/:id", g._admin.PublishPost)
@@ -642,15 +761,17 @@ func requireJSON() gin.HandlerFunc {
 }
 
 // installOnly refuses the database wizard's endpoints once the site is
-// installed, that is, once it has a database and an admin. They take no
-// credentials because during an install there is nobody to hold any, so
-// without this they stay open for good: /wizard_db rewrites .env with
+// installed, that is, once it has a database and an admin; until then it
+// asks for the setup code. The endpoints take no login because during an
+// install there is nobody to hold one: /wizard_db rewrites .env with
 // whatever database the request names, and /test_db opens any file or host
 // it is given.
 func (g *goblog) installOnly(c *gin.Context) {
-	if !g._wizard.IsDbNil() && !g._auth.IsWizardMode(c) {
+	if !g._wizard.IsDbNil() && g._auth.AdminExists() {
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "This site is already installed"})
+		return
 	}
+	g.setupOnly(c)
 }
 
 // parse the form which should have passed the db info

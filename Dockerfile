@@ -12,6 +12,9 @@ ARG VERSION
 RUN cd /go/src/github.com/compscidr/goblog/ && go build -ldflags="-X 'main.Version=$VERSION'" -v .
 
 # Run the outyet command by default when the container starts.
+# So `docker exec <container> ./goblog reset-admin-password` finds .env.
+WORKDIR /go/src/github.com/compscidr/goblog
+
 ENTRYPOINT cd /go/src/github.com/compscidr/goblog && ./goblog
 
 # Document that the service listens on port 7000.

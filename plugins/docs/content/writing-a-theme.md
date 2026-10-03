@@ -86,7 +86,7 @@ Beyond those, each template gets its own data. This is the contract of the runni
 | `page_content.html` | a custom page, and every plugin page (`/docs`, `/plugins`, …) | `page` (`.HTML` is the rendered body; `.Content` is raw markdown); a plugin page adds what the plugin returns, normally `has_plugin_content` and `plugin_content`, and may replace `title` |
 | `search.html` | `/search` | `query`, `results` (posts first, then plugin hits; each has `.Title`, `.URL`, `.Summary`, and `.Kind` — `""` for a post — plus `.Date` and `.Tags` for posts), `result_count`; render them with `{{ template "_search_results" . }}`. `posts` and `plugin_results` remain for a theme that renders the list itself. |
 | `tag.html` | `/tag/<name>` | `posts`, `tag` |
-| `login.html` | `/login` | `client_id`, `next`, `email_login_enabled` |
+| `login.html` | `/login` | `client_id`, `next`, `email_login_enabled`, `password_login_enabled`, `login_error`; when `password_login_enabled` is set, include the shared form with `{{ template "_password_login" . }}`. If a password is the only way to sign in, or the URL is `/login?password=1`, goblog renders its own `_password_login_page` instead of this template, so a theme that does not include the form cannot lock the admin out. |
 | `error.html` | 404s, a disabled or uninstalled plugin's page, unauthorized | `error`, `description` |
 | `admin*.html` | `/admin/…` | per page: `posts`, `post_types`, `pages`, `comments`, `users`, `themes`, `setting_groups`, `plugin`, … — read `admin/admin.go` and `admin/plugins.go` before overriding one |
 | `wizard_*.html` | the install wizard, before there is a database | only `version` and `title` (and `errors`) — none of the common keys exist yet |

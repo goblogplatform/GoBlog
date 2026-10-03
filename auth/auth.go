@@ -45,11 +45,14 @@ type Auth struct {
 	// around by value (New returns a value, wizard constructs its own); every
 	// copy of a given Auth shares the same limiter.
 	sendLimiter *ipLimiter
+	// passwordLimiter throttles password logins per client IP.
+	passwordLimiter *ipLimiter
 }
 
 // New constructs an Auth API
 func New(db *gorm.DB, version string) Auth {
-	api := Auth{db: &db, version: version, sendLimiter: newIPLimiter()}
+	api := Auth{db: &db, version: version, sendLimiter: newIPLimiter(),
+		passwordLimiter: newLimiter(passwordAttemptsPerIP, passwordAttemptsWindow)}
 	return api
 }
 
@@ -485,15 +488,20 @@ func (a *Auth) IsAdmin(c *gin.Context) bool {
 	return true
 }
 
-// IsWizardMode returns true when the install wizard has not yet completed,
-// detected by the absence of any row in the admin_users table. The wizard's
-// own pre-admin endpoints (image upload, initial settings) gate on this so
-// that fresh-install setup can complete before an admin user exists, without
-// IsAdmin itself being permissive to anonymous traffic.
+// IsWizardMode returns true when the install wizard has not yet completed
+// (no row in the admin_users table) and this browser has entered the setup
+// code (see SetupUnlocked). The wizard's own pre-admin endpoints (image
+// upload, initial settings) gate on this so that fresh-install setup can
+// complete before an admin user exists, without being open to whoever else
+// finds the site in the meantime (#658).
 func (a *Auth) IsWizardMode(c *gin.Context) bool {
+	return !a.AdminExists() && SetupUnlocked(c)
+}
+
+// AdminExists reports whether the site has an admin yet.
+func (a *Auth) AdminExists() bool {
 	var adminUser AdminUser
-	err := (*a.db).First(&adminUser).Error
-	return err != nil
+	return (*a.db).First(&adminUser).Error == nil
 }
 
 // CurrentUser returns the user whose session token is in the request's

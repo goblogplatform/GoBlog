@@ -133,6 +133,9 @@ func knownIdentifiers() map[string]bool {
 		"plugin_directory_url", "theme_directory_url", "refresh_minutes", "github_token",
 		"site_url", "site_description", "site_image", "custom_header_code", "custom_footer_code", "show_powered_by",
 
+		// Template data keys for login.html (blog/blog.go Login).
+		"password_login_enabled", "login_error",
+
 		// comments_require_login is both a template data key (blog/blog.go
 		// post.html render calls) and the setting blog.CommentsRequireLogin
 		// reads (blog/blog.go, blog/comment.go).

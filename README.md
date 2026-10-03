@@ -64,6 +64,10 @@ go build
 ```
 Visit http://localhost:7000 and follow the install wizard.
 
+The wizard first asks for a **setup code**, which goblog prints to its log at startup (`GoBlog setup code: XXXX-XXXX-XXXX`; with Docker, `docker logs <container> 2>&1 | grep "setup code"`). Being able to read the server's log is the proof that you run the server, so nobody else who finds a half-installed site can finish the install for you. The code changes on every restart and stops being printed once the site has an admin.
+
+It then takes three steps: the database, the site's title and images, and an **admin account** with an email and a password. No GitHub OAuth app or mail server is needed; the wizard still offers GitHub as the alternative for the last step.
+
 ### Docker
 ```bash
 docker run -p 7000:7000 -e GOBLOG_DATA_DIR=/data -v goblog-data:/data compscidr/goblog:latest
@@ -93,8 +97,19 @@ TRUSTED_PROXIES=172.16.0.0/12 ./goblog
 
 The session cookie is `HttpOnly`, `SameSite=Lax` and `Secure`, so it is only sent over HTTPS (browsers exempt `localhost`, so local development on `http://localhost:7000` still works). If you serve goblog over plain HTTP on any other host, set `SESSION_SECURE=false` or logins will not stick. Mutating `/api/v1` requests must be sent as `application/json` (`/api/v1/upload` as `multipart/form-data`); anything else gets `415 Unsupported Media Type`.
 
+### Admin Password
+The admin account the wizard creates signs in on the login page with its email and password. The email is only a sign-in name; goblog sends nothing to it. Passwords are at least 10 characters and stored as bcrypt hashes, and sign-in attempts are rate limited per client address.
+
+If you forget the password, reset it from the server. The command prints a new random password and signs out any browser logged in as that account:
+```bash
+./goblog reset-admin-password                # or: docker exec <container> ./goblog reset-admin-password
+```
+Run it from goblog's working directory, or with `GOBLOG_DATA_DIR` set as it is for the server, so that it finds `.env`.
+
+There is one password account, the one the wizard creates. To add GitHub login to such a site later, put `client_id` and `client_secret` in `.env` and restart; the login page then offers both.
+
 ### Pinning the Admin Account
-On a fresh install the first GitHub account to complete login becomes the admin. If you pre-populate `.env` (e.g. from configuration management) and skip the wizard, anyone could win that race. Pin it to your own account by adding either or both of these to `.env`:
+If you chose GitHub in the wizard, or pre-populate `.env` with GitHub credentials and skip it, the first GitHub account to complete login becomes the admin. If you pre-populate `.env` (e.g. from configuration management) and skip the wizard, anyone could win that race. Pin it to your own account by adding either or both of these to `.env`:
 ```bash
 admin_login=your-github-username      # case-insensitive
 admin_github_id=12345                 # numeric id: https://api.github.com/users/your-github-username
@@ -102,7 +117,7 @@ admin_github_id=12345                 # numeric id: https://api.github.com/users
 Other accounts can still log in as regular users but are never promoted. Leave both unset to keep the first-to-login behaviour.
 
 ### Managing Admins
-The pin above only decides who becomes the *first* admin. After that, admins are managed from the **Users** page in the admin area (`/admin/users`), which lists everyone who has logged in. An existing admin can promote any GitHub user to admin or demote another admin; the last remaining admin can't be demoted, so the site never ends up with none. Email-login users can't be made admin (see #565).
+The pin above only decides who becomes the *first* admin. After that, admins are managed from the **Users** page in the admin area (`/admin/users`), which lists everyone who has logged in. An existing admin can promote any GitHub user to admin or demote another admin (including the wizard's password account); the last remaining admin can't be demoted, so the site never ends up with none. Email-login users can't be made admin (see #565).
 
 To hand the site over to a different GitHub account: log in with the new account once so it appears in the list, promote it from your current admin account, then log in as the new account and demote the old one.
 
@@ -115,7 +130,7 @@ smtp_user=postmaster@example.com      # omit for an unauthenticated relay
 smtp_password=...
 smtp_from=blog@example.com
 ```
-When `smtp_host` and `smtp_from` are both set the login page offers "sign in with email"; otherwise it shows GitHub only. Codes expire after 10 minutes, allow 5 wrong attempts, and can be re-requested once a minute. Email users are regular users — the admin account is still GitHub-only (see above).
+When `smtp_host` and `smtp_from` are both set the login page offers "sign in with email"; otherwise it shows GitHub only. Codes expire after 10 minutes, allow 5 wrong attempts, and can be re-requested once a minute. Email users are regular users — they cannot be made admin (see above).
 
 SMTP settings are read once at startup, so restart goblog after changing any `smtp_*` value in `.env` for the change to take effect. Go's SMTP client only sends `smtp_user`/`smtp_password` over an encrypted connection (STARTTLS, or implicit TLS on port 465) unless the host is `localhost`, so if you need an unencrypted remote relay, use it without credentials.
 

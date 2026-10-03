@@ -21,6 +21,7 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -479,9 +480,10 @@ func main() {
 	router.Use(requireJSON())
 	router.Use(gplugin.Middleware(registry))
 	store := cookie.NewStore([]byte(sessionKey))
-	store.Options(sessionOptions(os.Getenv("SESSION_SECURE")))
+	store.Options(sessionOptions(true))
 	hostname, err := os.Hostname()
 	router.Use(sessions.Sessions(hostname, store))
+	router.Use(sessionCookieSecurity(os.Getenv("SESSION_SECURE")))
 	log.Println("Hostname: ", hostname)
 	// Load templates from the active theme directory, falling back to "default".
 	// activeTheme is read by the static handler on every /theme/* request and
@@ -720,15 +722,70 @@ func CORS() gin.HandlerFunc {
 
 // sessionOptions returns the session cookie's attributes: HttpOnly and
 // SameSite=Lax, so a cross-site form post or fetch does not carry an admin's
-// session, and Secure unless SESSION_SECURE=false (plain http on a host
-// other than localhost, which browsers exempt).
-func sessionOptions(secureEnv string) sessions.Options {
+// session, and Secure as cookieSecure decides for the request.
+func sessionOptions(secure bool) sessions.Options {
 	return sessions.Options{
 		Path:     "/",
 		MaxAge:   30 * 24 * 60 * 60,
 		HttpOnly: true,
-		Secure:   secureEnv != "false",
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+// cookieSecure decides whether the session cookie for this request is
+// marked Secure. SESSION_SECURE=true or false is the operator's answer and
+// is final. Otherwise the cookie is Secure, with one exception: a request
+// that arrived over plain http for a host that only exists on a local
+// network (an IP address, a bare name, .local and the like). A browser
+// there would silently drop a Secure cookie, so nobody could get past the
+// setup code or log in on a home server (#665), and there is no https for
+// the flag to protect.
+//
+// A public host name stays Secure even when the request looks like plain
+// http, because that is also what a TLS-terminating proxy that forwards no
+// headers looks like.
+func cookieSecure(secureEnv string, r *http.Request) bool {
+	switch secureEnv {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+	forwarded, _, _ := strings.Cut(r.Header.Get("X-Forwarded-Proto"), ",")
+	if r.TLS != nil || strings.EqualFold(strings.TrimSpace(forwarded), "https") {
+		return true
+	}
+	return !localNetworkHost(r.Host)
+}
+
+// localNetworkHost reports whether host (a Host header, port allowed) can
+// only be a machine on a local network: an IP address, a name with no dot,
+// or a name under a suffix reserved for private use.
+func localNetworkHost(host string) bool {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.ToLower(strings.TrimSuffix(strings.Trim(host, "[]"), "."))
+	if host == "" {
+		return false
+	}
+	if net.ParseIP(host) != nil || !strings.Contains(host, ".") {
+		return true
+	}
+	for _, suffix := range []string{".local", ".lan", ".internal", ".home.arpa", ".localhost"} {
+		if strings.HasSuffix(host, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+// sessionCookieSecurity sets the session cookie's attributes for each
+// request. It has to run after sessions.Sessions.
+func sessionCookieSecurity(secureEnv string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessions.Default(c).Options(sessionOptions(cookieSecure(secureEnv, c.Request)))
 	}
 }
 

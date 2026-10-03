@@ -120,8 +120,9 @@ esac
 step "starting goblog ($DB${LEGACY:+, no data directory})"
 start_app
 
-# The session cookie is Secure, which curl will not send over plain http, so
-# it is carried by hand. login stores whatever cookies the last response set.
+# The session cookie is carried by hand, so the test does not depend on what
+# curl's cookie jar makes of its attributes. keep_cookies stores whatever
+# cookies the last response set.
 COOKIE=""
 keep_cookies() {
   set_cookies=$(grep -i '^set-cookie:' "$TMP/headers" | sed -E 's/^[^:]*: *([^;]*).*/\1/' | paste -sd ';' - | sed 's/;/; /g' || true)
@@ -154,6 +155,9 @@ SETUP_CODE=$(docker logs "$APP" 2>&1 | sed -n 's/.*GoBlog setup code: \([A-Z0-9-
 [ -n "$SETUP_CODE" ] || fail "no setup code in the log"
 as_owner "POST /wizard/unlock" 303 -X POST "$BASE/wizard/unlock" -d "setup_code=$SETUP_CODE"
 [ -n "$COOKIE" ] || fail "POST /wizard/unlock set no cookie"
+# Plain http to an IP address: a Secure cookie would be dropped by a browser,
+# and the install could not get past this page (#665).
+! grep -i '^set-cookie:' "$TMP/headers" | grep -qi '; *secure' || fail "the session cookie is Secure over plain http on an IP address"
 as_owner "GET /" 200 "$BASE/"
 body_has 'name="dbtype"' "GET / with the setup code"
 

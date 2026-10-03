@@ -1,25 +1,99 @@
 package main
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 )
 
 func TestSessionOptions(t *testing.T) {
-	o := sessionOptions("")
+	o := sessionOptions(true)
 	if !o.HttpOnly || !o.Secure || o.SameSite != http.SameSiteLaxMode || o.Path != "/" || o.MaxAge <= 0 {
-		t.Errorf("default options: %+v", o)
+		t.Errorf("options: %+v", o)
 	}
-	if sessionOptions("false").Secure {
-		t.Error("SESSION_SECURE=false should clear Secure")
+	if sessionOptions(false).Secure {
+		t.Error("sessionOptions(false) is Secure")
 	}
-	if !sessionOptions("true").Secure {
-		t.Error("SESSION_SECURE=true should keep Secure")
+}
+
+// TestCookieSecure: the session cookie is Secure unless the operator said
+// otherwise or the request is plain http for a host on a local network,
+// where a Secure cookie would be dropped and nobody could log in (#665).
+func TestCookieSecure(t *testing.T) {
+	type req struct {
+		env, host, proto string
+		tls              bool
+	}
+	for name, tc := range map[string]struct {
+		req
+		want bool
+	}{
+		"LAN address":                    {req{host: "192.168.1.20:7000"}, false},
+		"loopback address":               {req{host: "127.0.0.1:7000"}, false},
+		"IPv6 address":                   {req{host: "[fd00::1]:7000"}, false},
+		"bare host name":                 {req{host: "nas:7000"}, false},
+		"mDNS name":                      {req{host: "blog.local"}, false},
+		"localhost":                      {req{host: "localhost:7000"}, false},
+		"public name, plain http":        {req{host: "blog.example.com"}, true}, // or a proxy that forwards no headers
+		"public name behind https proxy": {req{host: "blog.example.com", proto: "https"}, true},
+		"LAN address behind https proxy": {req{host: "192.168.1.20", proto: "HTTPS, http"}, true},
+		"LAN address over TLS":           {req{host: "192.168.1.20:7000", tls: true}, true},
+		"no host":                        {req{host: ""}, true},
+		"forced on, LAN address":         {req{env: "true", host: "192.168.1.20:7000"}, true},
+		"forced off, public name":        {req{env: "false", host: "blog.example.com", proto: "https"}, false},
+	} {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.Host = tc.host
+		if tc.proto != "" {
+			r.Header.Set("X-Forwarded-Proto", tc.proto)
+		}
+		if tc.tls {
+			r.TLS = &tls.ConnectionState{}
+		}
+		if got := cookieSecure(tc.env, r); got != tc.want {
+			t.Errorf("%s: Secure = %v, want %v", name, got, tc.want)
+		}
+	}
+}
+
+// TestSessionCookieSecurity: the middleware's decision is what ends up on
+// the Set-Cookie header.
+func TestSessionCookieSecurity(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	store := cookie.NewStore([]byte("test"))
+	store.Options(sessionOptions(true))
+	r.Use(sessions.Sessions("session", store))
+	r.Use(sessionCookieSecurity(""))
+	r.GET("/", func(c *gin.Context) {
+		s := sessions.Default(c)
+		s.Set("k", "v")
+		if err := s.Save(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	for host, wantSecure := range map[string]bool{"192.168.1.20:7000": false, "blog.example.com": true} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Host = host
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		header := w.Header().Get("Set-Cookie")
+		if header == "" {
+			t.Fatalf("%s: no Set-Cookie", host)
+		}
+		if got := strings.Contains(header, "Secure"); got != wantSecure {
+			t.Errorf("%s: Secure = %v, want %v (%s)", host, got, wantSecure, header)
+		}
+		if !strings.Contains(header, "HttpOnly") || !strings.Contains(header, "SameSite=Lax") {
+			t.Errorf("%s: cookie lost HttpOnly or SameSite: %s", host, header)
+		}
 	}
 }
 

@@ -714,7 +714,8 @@ func CORS() gin.HandlerFunc {
 
 // sessionCookieName is the session cookie's name. It used to be the
 // machine's hostname, which Docker makes up afresh for every container, so
-// replacing the container (any upgrade) signed everybody out (#667).
+// replacing the container (any upgrade) signed everybody out. Found while
+// fixing the session key that the wizard's database step dropped (#667).
 const sessionCookieName = "goblog_session"
 
 // sessionOptions returns the session cookie's attributes: HttpOnly and

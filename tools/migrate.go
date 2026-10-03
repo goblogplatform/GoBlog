@@ -609,8 +609,6 @@ Edit it under **Admin → Pages**.
 		{
 			Title:     "Writing",
 			Slug:      "posts",
-			HeroURL:   "/vid/redtree.mp4",
-			HeroType:  "video",
 			PageType:  blog.PageTypeWriting,
 			ShowInNav: true,
 			NavOrder:  1,
@@ -620,8 +618,6 @@ Edit it under **Admin → Pages**.
 			Title:     "About",
 			Slug:      "about",
 			Content:   aboutContent,
-			HeroURL:   "/img/hero_rigolet.jpg",
-			HeroType:  "image",
 			PageType:  blog.PageTypeAbout,
 			ShowInNav: true,
 			NavOrder:  3,

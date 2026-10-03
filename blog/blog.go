@@ -1002,21 +1002,6 @@ func (b *Blog) Home(c *gin.Context) {
 	})
 }
 
-// Posts is the index page for blog posts
-func (b *Blog) Posts(c *gin.Context) {
-	b.Render(c, http.StatusOK, "posts.html", gin.H{
-		"logged_in":  b.auth.IsLoggedIn(c),
-		"is_admin":   b.auth.IsAdmin(c),
-		"posts":      b.GetPosts(false),
-		"version":    b.Version,
-		"title":      "Posts",
-		"recent":     b.GetLatest(),
-		"admin_page": false,
-		"settings":   b.GetSettings(),
-		"nav_pages":  b.GetNavPages(),
-	})
-}
-
 // Post is the page for all individual posts
 func (b *Blog) Post(c *gin.Context) {
 	post, err := b.GetPostObject(c)
@@ -1135,81 +1120,6 @@ func (b *Blog) Tag(c *gin.Context) {
 			"nav_pages":  b.GetNavPages(),
 		})
 	}
-}
-
-// Tags is the index page for all Tags
-func (b *Blog) Tags(c *gin.Context) {
-	b.Render(c, http.StatusOK, "tags.html", gin.H{
-		"version":    b.Version,
-		"title":      "Tags",
-		"tags":       b.getTags(),
-		"recent":     b.GetLatest(),
-		"admin_page": false,
-		"settings":   b.GetSettings(),
-		"nav_pages":  b.GetNavPages(),
-	})
-}
-
-// Speaking is the index page for presentations
-func (b *Blog) Speaking(c *gin.Context) {
-	b.Render(c, http.StatusOK, "presentations.html", gin.H{
-		"logged_in":  b.auth.IsLoggedIn(c),
-		"is_admin":   b.auth.IsAdmin(c),
-		"version":    b.Version,
-		"title":      "Presentations and Speaking",
-		"recent":     b.GetLatest(),
-		"admin_page": false,
-		"settings":   b.GetSettings(),
-		"nav_pages":  b.GetNavPages(),
-	})
-}
-
-// Projects is the index page for projects / code
-func (b *Blog) Projects(c *gin.Context) {
-	b.Render(c, http.StatusOK, "projects.html", gin.H{
-		"logged_in":  b.auth.IsLoggedIn(c),
-		"is_admin":   b.auth.IsAdmin(c),
-		"version":    b.Version,
-		"title":      "Projects",
-		"recent":     b.GetLatest(),
-		"admin_page": false,
-		"settings":   b.GetSettings(),
-		"nav_pages":  b.GetNavPages(),
-	})
-}
-
-// About is the about page
-func (b *Blog) About(c *gin.Context) {
-	b.Render(c, http.StatusOK, "about.html", gin.H{
-		"logged_in":  b.auth.IsLoggedIn(c),
-		"is_admin":   b.auth.IsAdmin(c),
-		"version":    b.Version,
-		"title":      "About",
-		"recent":     b.GetLatest(),
-		"admin_page": false,
-		"settings":   b.GetSettings(),
-		"nav_pages":  b.GetNavPages(),
-	})
-}
-
-// Archives shows the posts by year, month, etc.
-func (b *Blog) Archives(c *gin.Context) {
-	yearKeys, byYear := b.getArchivesByYear()
-	monthKeys, byYearMonth := b.getArchivesByYearMonth()
-	b.Render(c, http.StatusOK, "archives.html", gin.H{
-		"logged_in":     b.auth.IsLoggedIn(c),
-		"is_admin":      b.auth.IsAdmin(c),
-		"version":       b.Version,
-		"title":         "Blog Archives",
-		"yearKeys":      yearKeys,
-		"byYear":        byYear,
-		"yearMonthKeys": monthKeys,
-		"byYearMonth":   byYearMonth,
-		"recent":        b.GetLatest(),
-		"admin_page":    false,
-		"settings":      b.GetSettings(),
-		"nav_pages":     b.GetNavPages(),
-	})
 }
 
 // SiteURL is the site's public origin without a trailing slash: the

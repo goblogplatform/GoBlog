@@ -95,7 +95,7 @@ Set `TRUSTED_PROXIES` so `X-Forwarded-For` headers are trusted for client IP res
 TRUSTED_PROXIES=172.16.0.0/12 ./goblog
 ```
 
-The session cookie is `HttpOnly`, `SameSite=Lax` and `Secure`, so it is only sent over HTTPS (browsers exempt `localhost`, so local development on `http://localhost:7000` still works). If you serve goblog over plain HTTP on any other host, set `SESSION_SECURE=false` or logins will not stick. Mutating `/api/v1` requests must be sent as `application/json` (`/api/v1/upload` as `multipart/form-data`); anything else gets `415 Unsupported Media Type`.
+The session cookie is `HttpOnly`, `SameSite=Lax` and `Secure`, so it is only sent over HTTPS. The one exception goblog makes by itself is a request over plain HTTP for a host that can only be on a local network (an IP address, a bare host name, or a name ending in `.local`, `.lan`, `.internal`, `.home.arpa` or `.localhost`): there the cookie is not marked `Secure`, so a home-server install at `http://192.168.1.20:7000` can log in. `SESSION_SECURE=true` or `SESSION_SECURE=false` overrides that decision either way; if you serve goblog over plain HTTP on a public host name, set `SESSION_SECURE=false` or logins will not stick. Mutating `/api/v1` requests must be sent as `application/json` (`/api/v1/upload` as `multipart/form-data`); anything else gets `415 Unsupported Media Type`.
 
 ### Admin Password
 The admin account the wizard creates signs in on the login page with its email and password. The email is only a sign-in name; goblog sends nothing to it. Passwords are at least 10 characters and stored as bcrypt hashes, and sign-in attempts are rate limited per client address.

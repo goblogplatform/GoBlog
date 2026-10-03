@@ -29,7 +29,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary">Continue</button>
             </form>
-            <p class="text-muted small mt-4">The code changes every time goblog restarts. If this page comes back after you enter the right code, your browser is not keeping the session cookie: goblog marks it Secure, which browsers only accept over https or on localhost. Use one of those, or start goblog with <code>SESSION_SECURE=false</code>.</p>
+            <p class="text-muted small mt-4">The code changes every time goblog restarts. If this page comes back after you enter the right code, your browser is not keeping the session cookie: on a public host name goblog marks it Secure, which browsers only accept over https. Use https, or start goblog with <code>SESSION_SECURE=false</code>.</p>
             <div class="version text-center">{{ template "_powered_by" . }}</div>
         </div>
     </div>

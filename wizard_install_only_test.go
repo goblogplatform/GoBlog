@@ -105,11 +105,19 @@ func TestInstallOnly(t *testing.T) {
 
 	t.Run("no database yet", func(t *testing.T) {
 		t.Chdir(t.TempDir())
+		// What startup leaves in .env before the wizard runs.
+		if err := os.WriteFile(".env", []byte("SESSION_KEY=0123\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
 		if w := post(app(nil), "/wizard_db"); w.Code != http.StatusSeeOther {
 			t.Errorf("POST /wizard_db before install: status %d, want 303", w.Code)
 		}
-		if got, _ := os.ReadFile(".env"); !strings.Contains(string(got), "sqlite_db=other.db") {
+		got, _ := os.ReadFile(".env")
+		if !strings.Contains(string(got), "sqlite_db=other.db") {
 			t.Errorf(".env not written by the wizard: %q", got)
+		}
+		if !strings.Contains(string(got), "SESSION_KEY=0123") {
+			t.Errorf("the database step dropped the session key from .env (#667): %q", got)
 		}
 	})
 

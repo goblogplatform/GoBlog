@@ -167,3 +167,23 @@ func writeTempEnv(t *testing.T, content string) string {
 	}
 	return path
 }
+
+// TestMergedEnvFile: the wizard's database step replaces the database
+// settings in .env and nothing else (#667).
+func TestMergedEnvFile(t *testing.T) {
+	existing := "SESSION_KEY=0123\n# mail\nsmtp_host=smtp.example.com\ndatabase=mysql\nMYSQL_HOST=old\nMYSQL_PASSWORD=old\nadmin_login=me\n"
+	got := dbConfig{Type: "sqlite", SQLiteFile: "blog.db"}.mergedEnvFile(existing)
+	want := "SESSION_KEY=0123\n# mail\nsmtp_host=smtp.example.com\nadmin_login=me\ndatabase=sqlite\nsqlite_db=blog.db\n"
+	if got != want {
+		t.Errorf("merged .env:\n%s\nwant:\n%s", got, want)
+	}
+	// Saving the step twice does not pile up lines.
+	if again := (dbConfig{Type: "sqlite", SQLiteFile: "blog.db"}).mergedEnvFile(got); again != want {
+		t.Errorf("merging twice:\n%s\nwant:\n%s", again, want)
+	}
+	// No .env yet, or an empty one: just the database lines.
+	cfg := dbConfig{Type: "postgres", Host: "db", Port: "5432", User: "u", Password: "p", Name: "n", SSLMode: "disable"}
+	if got := cfg.mergedEnvFile(""); got != cfg.envFile() {
+		t.Errorf("merging into nothing:\n%s\nwant:\n%s", got, cfg.envFile())
+	}
+}

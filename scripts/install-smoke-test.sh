@@ -245,6 +245,9 @@ else
   start_app
 fi
 check_site
+# The session key is in .env, so the browser the wizard logged in is still
+# logged in after a restart (#667).
+as_owner "GET /admin/dashboard with the session from the wizard" 200 "$BASE/admin/dashboard"
 
 step "signing in with the password"
 login "not the password" "/login?password=1&login_error=invalid"

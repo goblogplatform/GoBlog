@@ -14,6 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         database: [sqlite, mysql, postgres]
+        # A matrix key of its own: an include that only added "legacy" to
+        # sqlite would modify the sqlite job instead of adding a second one.
+        legacy: [""]
         include:
           # The layout of installs that predate GOBLOG_DATA_DIR.
           - database: sqlite

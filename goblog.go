@@ -481,10 +481,8 @@ func main() {
 	router.Use(gplugin.Middleware(registry))
 	store := cookie.NewStore([]byte(sessionKey))
 	store.Options(sessionOptions(true))
-	hostname, err := os.Hostname()
-	router.Use(sessions.Sessions(hostname, store))
+	router.Use(sessions.Sessions(sessionCookieName, store))
 	router.Use(sessionCookieSecurity(os.Getenv("SESSION_SECURE")))
-	log.Println("Hostname: ", hostname)
 	// Load templates from the active theme directory, falling back to "default".
 	// activeTheme is read by the static handler on every /theme/* request and
 	// written by loadTheme from admin requests (activate, update, settings),
@@ -602,17 +600,11 @@ func main() {
 		router.Use(static.Serve("/uploads", static.LocalFile(datadir.Path("uploads"), false)))
 	}
 	router.Use(static.Serve("/", static.LocalFile("www", false)))
-	if err != nil {
-		log.Println("Couldn't get the hostname")
-		return
-	}
-
 	if db != nil {
 		goblog.addRoutes()
 	}
 
-	err = router.Run(":7000")
-	if err != nil {
+	if err := router.Run(":7000"); err != nil {
 		log.Println("Error running goblog server: " + err.Error())
 	}
 }
@@ -719,6 +711,12 @@ func CORS() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// sessionCookieName is the session cookie's name. It used to be the
+// machine's hostname, which Docker makes up afresh for every container, so
+// replacing the container (any upgrade) signed everybody out. Found while
+// fixing the session key that the wizard's database step dropped (#667).
+const sessionCookieName = "goblog_session"
 
 // sessionOptions returns the session cookie's attributes: HttpOnly and
 // SameSite=Lax, so a cross-site form post or fetch does not carry an admin's
@@ -853,7 +851,9 @@ func updateDB(c *gin.Context) {
 		fail("Invalid database type")
 		return
 	}
-	if err := os.WriteFile(datadir.Path(".env"), []byte(cfg.envFile()), 0600); err != nil {
+	// A missing .env reads as empty: the step then writes just its own lines.
+	existing, _ := os.ReadFile(datadir.Path(".env"))
+	if err := os.WriteFile(datadir.Path(".env"), []byte(cfg.mergedEnvFile(string(existing))), 0600); err != nil {
 		fail("Couldn't write the .env file: " + err.Error())
 		return
 	}

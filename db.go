@@ -85,6 +85,35 @@ func dbConfigFromForm(c *gin.Context) dbConfig {
 	return cfg
 }
 
+// isDatabaseEnvKey reports whether key is one of the .env settings that
+// envFile writes, for any database type.
+func isDatabaseEnvKey(key string) bool {
+	return key == "database" || key == "sqlite_db" ||
+		strings.HasPrefix(key, "MYSQL_") || strings.HasPrefix(key, "POSTGRES_")
+}
+
+// mergedEnvFile is what the wizard's database step saves: the existing .env
+// with its database settings replaced by cfg's, and every other line kept.
+// The step used to write only envFile(), which threw away the session key
+// that startup had just put there, so the first restart after an install
+// signed everybody out (#667); it would equally have dropped SMTP or admin
+// pin settings an operator had placed in .env beforehand.
+func (cfg dbConfig) mergedEnvFile(existing string) string {
+	var kept []string
+	for _, line := range strings.Split(existing, "\n") {
+		key, _, _ := strings.Cut(strings.TrimSpace(line), "=")
+		if isDatabaseEnvKey(strings.TrimSpace(key)) {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	out := strings.TrimRight(strings.Join(kept, "\n"), "\n")
+	if out != "" {
+		out += "\n"
+	}
+	return out + cfg.envFile()
+}
+
 // envFile renders the settings as the .env lines the wizard writes.
 func (cfg dbConfig) envFile() string {
 	var b strings.Builder

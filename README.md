@@ -74,6 +74,8 @@ docker run -p 7000:7000 -e GOBLOG_DATA_DIR=/data -v goblog-data:/data compscidr/
 ```
 `GOBLOG_DATA_DIR` is where goblog keeps everything it writes: `.env` (the session key, database settings and GitHub credentials the wizard saves), the SQLite database, uploads, and installed plugins and themes. With it on a volume, the site survives the container being replaced, for example when you pull a newer image. Without it those files are written inside the container and are lost with it.
 
+The same with Docker Compose is in [`docker-compose.yml`](docker-compose.yml): `docker compose up -d`, then `docker compose logs goblog | grep "setup code"`. It has a commented-out PostgreSQL service for those who want one.
+
 A relative SQLite path such as the wizard's default `goblog.db` is created inside the data directory; an absolute path is used as given. Sites set up before `GOBLOG_DATA_DIR` existed keep working unchanged when it is not set.
 
 ### Database

@@ -334,6 +334,7 @@ func seedDefaultSettings(db *gorm.DB) {
 		{Key: "site_url", Type: "text", Value: "https://www.example.com"},
 		{Key: "site_description", Type: "textarea", Value: ""},
 		{Key: "site_image", Type: "file", Value: ""},
+		{Key: "site_is_person", Type: "checkbox", Value: "false"},
 		{Key: "comments_require_login", Type: "checkbox", Value: "true"},
 		{Key: "plugin_directory_url", Type: "text", Value: "https://www.goblog.live/plugins/index.json"},
 		{Key: "theme_directory_url", Type: "text", Value: "https://www.goblog.live/themes/index.json"},

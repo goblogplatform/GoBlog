@@ -83,6 +83,24 @@
       }
     }
   </script>
+  {{- /* A personal site says whose it is: the site title is the person's name, and sameAs lists the profiles the Social Icons plugin holds (.plugins.socialicons.links), which is how a search engine ties them to this site. Off unless site_is_person is set. */}}
+  {{ with index .settings "site_is_person" }}{{ if eq .Value "true" }}
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": "{{ $.settings.site_title.Value }}",
+      {{ if $description }}"description": "{{ $description }}",{{ end }}
+      {{ if $image }}"image": "{{ $image }}",{{ end }}
+      "sameAs": [
+        {{- with $.plugins }}{{ with index . "socialicons" }}{{ range $i, $l := index . "links" }}{{ if $i }},{{ end }}
+        "{{ $l.URL }}"
+        {{- end }}{{ end }}{{ end }}
+      ],
+      "url": "{{ $site }}/"
+    }
+  </script>
+  {{ end }}{{ end }}
   {{ end }}
   {{ end }}
   {{ if $site }}<link rel="alternate" type="application/rss+xml" title="{{ .settings.site_title.Value }}" href="{{ $site }}/rss.xml">{{ end }}

@@ -1674,6 +1674,23 @@ func (p *describingPlugin) RenderPage(ctx *plugin.HookContext, pageType string) 
 	return "page_content.html", gin.H{"has_plugin_content": true, "plugin_content": "<p>hi</p>", "title": "Hello plugin", "meta_description": "Hello says hi to <everyone>."}
 }
 
+// socialPlugin stands in for the Social Icons plugin: two profile links,
+// in the shape a wasm plugin's template_data decodes to.
+type socialPlugin struct{ plugin.BasePlugin }
+
+func (p *socialPlugin) Name() string        { return "socialicons" }
+func (p *socialPlugin) DisplayName() string { return "Social Icons" }
+func (p *socialPlugin) Version() string     { return "1.0.0" }
+func (p *socialPlugin) Settings() []plugin.SettingDefinition {
+	return []plugin.SettingDefinition{{Key: "enabled", Type: "text", DefaultValue: "true", Label: "Enabled"}}
+}
+func (p *socialPlugin) TemplateData(_ *plugin.HookContext) gin.H {
+	return gin.H{"links": []any{
+		map[string]any{"Name": "GitHub", "URL": "https://github.com/me", "Icon": "fab fa-github"},
+		map[string]any{"Name": "LinkedIn", "URL": "https://www.linkedin.com/in/me/", "Icon": "fab fa-linkedin"},
+	}}
+}
+
 // TestHeadMetadata: the shared _head gives every page a description,
 // canonical link and Open Graph tags from the site settings and the page's
 // own data, and structured data that does not name any particular site.
@@ -1697,6 +1714,7 @@ func TestHeadMetadata(t *testing.T) {
 	b := blog.New(db, a, "test")
 	reg := plugin.NewRegistry(db)
 	reg.Register(&describingPlugin{})
+	reg.Register(&socialPlugin{})
 	reg.Init()
 	b.PageFilter = blog.PluginPageFilter(reg)
 
@@ -1742,6 +1760,9 @@ func TestHeadMetadata(t *testing.T) {
 		`"@type": "WebSite"`, `"SearchAction"`, `"target": "https:\/\/www.example.test/search?q={search_term_string}"`)
 	if h := head(get("/")); strings.Contains(h, "og:image") || strings.Contains(h, "jason.jpg") {
 		t.Errorf("no site_image: no og:image and nothing site-specific:\n%s", h)
+	}
+	if h := head(get("/")); strings.Contains(h, `"Person"`) {
+		t.Errorf("no site_is_person: the home page must not claim to be a person's:\n%s", h)
 	}
 
 	// The post is canonical at its permalink whichever URL it was read at.
@@ -1803,6 +1824,26 @@ func TestHeadMetadata(t *testing.T) {
 	db.Create(&blog.Setting{Key: "site_image", Value: "/img/card.png"})
 	check(t, "/", `<meta property="og:image" content="https://www.example.test/img/card.png">`)
 	check(t, "/posts/2026/08/15/hello", `"https://www.example.test/img/card.png"`)
+
+	// A personal site's home page names the person and their profiles, as
+	// valid JSON; other pages do not repeat it.
+	db.Create(&blog.Setting{Key: "site_is_person", Value: "true"})
+	h := head(get("/"))
+	ld := h[strings.LastIndex(h, `<script type="application/ld+json">`)+len(`<script type="application/ld+json">`):]
+	ld = ld[:strings.Index(ld, "</script>")]
+	var person map[string]any
+	if err := json.Unmarshal([]byte(ld), &person); err != nil {
+		t.Fatalf("person structured data is not JSON (%v):\n%s", err, ld)
+	}
+	if person["@type"] != "Person" || person["name"] != "GoBlog" || person["url"] != "https://www.example.test/" || person["image"] != "https://www.example.test/img/card.png" {
+		t.Errorf("person = %v", person)
+	}
+	if same, _ := person["sameAs"].([]any); len(same) != 2 || same[0] != "https://github.com/me" || same[1] != "https://www.linkedin.com/in/me/" {
+		t.Errorf("sameAs = %v", person["sameAs"])
+	}
+	if h := head(get("/dir/hello")); strings.Contains(h, `"sameAs"`) {
+		t.Errorf("only the home page carries the person:\n%s", h)
+	}
 }
 
 // titlingPlugin owns "dir" and names its sub-page.

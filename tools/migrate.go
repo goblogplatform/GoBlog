@@ -328,6 +328,7 @@ func seedDefaultSettings(db *gorm.DB) {
 		{Key: "favicon", Type: "file", Value: "/img/favicon.ico"},
 		{Key: "custom_header_code", Type: "textarea", Value: ""},
 		{Key: "custom_footer_code", Type: "textarea", Value: ""},
+		{Key: "show_powered_by", Type: "checkbox", Value: "true"},
 		{Key: "theme", Type: "text", Value: "default"},
 		{Key: "robots_tag", Type: "text", Value: "index, follow"},
 		{Key: "site_url", Type: "text", Value: "https://www.example.com"},

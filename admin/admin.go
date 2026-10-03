@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"goblog/auth"
 	"goblog/blog"
+	"goblog/datadir"
 	gplugin "goblog/plugin"
 	"goblog/plugin/installer"
 	"goblog/plugins/directory"
@@ -209,7 +210,13 @@ func (a *Admin) UploadFile(c *gin.Context) {
 	}
 
 	filename := UploadsFolder + filepath.Base(file.Filename)
-	if err := c.SaveUploadedFile(file, WWWFolder+filename); err != nil {
+	// With a data directory the file goes to <data>/uploads, which main
+	// serves at /uploads; otherwise into www, served as it always was.
+	dst := WWWFolder + filename
+	if dir := datadir.Dir(); dir != "" {
+		dst = filepath.Join(dir, filename)
+	}
+	if err := c.SaveUploadedFile(file, dst); err != nil {
 		log.Println(fmt.Sprintf("Save Upload File Error erorr: %s", err.Error()))
 		c.JSON(http.StatusBadRequest, fmt.Sprintf("upload file err: %s", err.Error()))
 		return

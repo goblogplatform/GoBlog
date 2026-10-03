@@ -12,6 +12,7 @@ import (
 	"sort"
 
 	"goblog/auth"
+	"goblog/datadir"
 	"html/template"
 	"log"
 	"net"
@@ -1395,7 +1396,7 @@ func (b *Blog) RobotsTxt(c *gin.Context) {
 
 // Login to the blog
 func (b *Blog) Login(c *gin.Context) {
-	err := godotenv.Load(".env")
+	err := godotenv.Load(datadir.Path(".env"))
 	if err != nil {
 		//fall back to local config
 		err = godotenv.Load("local.env")
@@ -1550,7 +1551,7 @@ func GithubAuthorizeURL(origin, clientID, state string) string {
 // The state it mints, and where the visitor was heading, are kept in the
 // session for GithubCallback to check when GitHub returns (#637).
 func (b *Blog) GithubLogin(c *gin.Context) {
-	if err := godotenv.Load(".env"); err != nil {
+	if err := godotenv.Load(datadir.Path(".env")); err != nil {
 		_ = godotenv.Load("local.env")
 	}
 	clientID := os.Getenv("client_id")

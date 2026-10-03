@@ -6,6 +6,7 @@
 package theme
 
 import (
+	"goblog/datadir"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -24,13 +25,13 @@ var (
 // DefaultName is the theme every other theme is layered on.
 const DefaultName = "default"
 
-// InstalledRoot is where the theme installer writes: $THEMES_INSTALLED_DIR
-// or themes/installed. Read on every call so tests can change it.
+// InstalledRoot is where the theme installer writes: $THEMES_INSTALLED_DIR,
+// or themes/installed (under the data directory when one is set). Read on every call so tests can change it.
 func InstalledRoot() string {
 	if v := os.Getenv("THEMES_INSTALLED_DIR"); v != "" {
 		return v
 	}
-	return filepath.Join(BuiltinRoot, "installed")
+	return datadir.Path(filepath.Join(BuiltinRoot, "installed"))
 }
 
 // namePattern is the on-disk rule, unchanged from the old inline check in

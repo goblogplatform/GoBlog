@@ -7,6 +7,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"goblog/auth"
+	"goblog/datadir"
 	"gorm.io/gorm"
 	"io"
 	"log"
@@ -144,7 +145,7 @@ func (w *Wizard) LoginCode(c *gin.Context) error {
 		return errors.New("Error unmarshalling token response: " + err.Error())
 	}
 
-	f, err := os.OpenFile(".env", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	f, err := os.OpenFile(datadir.Path(".env"), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return errors.New("Error writing the .env file to save settings: " + err.Error())
 	}

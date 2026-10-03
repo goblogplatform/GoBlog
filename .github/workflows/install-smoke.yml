@@ -8,12 +8,19 @@ on:
 jobs:
 
   install:
-    name: Fresh install (${{ matrix.database }})
+    name: Fresh install (${{ matrix.database }}${{ matrix.legacy && ', no data directory' || '' }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         database: [sqlite, mysql, postgres]
+        # A matrix key of its own: an include that only added "legacy" to
+        # sqlite would modify the sqlite job instead of adding a second one.
+        legacy: [""]
+        include:
+          # The layout of installs that predate GOBLOG_DATA_DIR.
+          - database: sqlite
+            legacy: "1"
     steps:
 
       - name: Check out code
@@ -22,4 +29,6 @@ jobs:
       # Builds the Docker image and walks the install wizard against a
       # fresh database (#651).
       - name: Install smoke test
+        env:
+          GOBLOG_SMOKE_LEGACY: ${{ matrix.legacy }}
         run: scripts/install-smoke-test.sh ${{ matrix.database }}

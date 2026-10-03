@@ -1550,9 +1550,10 @@ func (p *sitemapPlugin) Sitemap(_ *plugin.HookContext) []plugin.SitemapURL {
 }
 
 // TestSitemap: every URL is under the site_url setting (not a host baked
-// into goblog); posts carry lastmod; every enabled page is listed, nav or
-// not; pages that do not exist are not invented; enabled plugins that
-// implement plugin.Sitemapper add their URLs.
+// into goblog) and listed once; posts carry lastmod, and the home page and
+// a listing carry their newest post's; tag pages are left out; every
+// enabled page is listed, nav or not; pages that do not exist are not
+// invented; enabled plugins that implement plugin.Sitemapper add their URLs.
 func TestSitemap(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open(":memory:"))
 	db.AutoMigrate(&auth.BlogUser{}, &blog.PostType{}, &blog.Post{}, &blog.Tag{}, &blog.Comment{}, &blog.Page{}, &blog.Setting{}, &plugin.PluginSetting{})
@@ -1562,6 +1563,7 @@ func TestSitemap(t *testing.T) {
 	updated := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	db.Create(&blog.Post{Title: "Hello", Slug: "hello", Content: "hi", PostTypeID: pt.ID, CreatedAt: updated, UpdatedAt: updated, Tags: []blog.Tag{{Name: "go"}}})
 	db.Create(&blog.Post{Title: "Draft", Slug: "draft", Content: "hi", PostTypeID: pt.ID, Draft: true})
+	db.Create(&blog.Page{Title: "Writing", Slug: "posts", PageType: blog.PageTypeAbout, ShowInNav: true, Enabled: true})
 	db.Create(&blog.Page{Title: "About", Slug: "about", PageType: blog.PageTypeAbout, ShowInNav: true, Enabled: true})
 	db.Create(&blog.Page{Title: "Hidden", Slug: "hidden", PageType: blog.PageTypeAbout, ShowInNav: false, Enabled: true})
 	db.Create(&blog.Page{Title: "Off", Slug: "off", PageType: blog.PageTypeAbout, ShowInNav: true, Enabled: false})
@@ -1584,13 +1586,13 @@ func TestSitemap(t *testing.T) {
 		t.Fatalf("code=%d type=%q", w.Code, w.Header().Get("Content-Type"))
 	}
 	for _, want := range []string{
-		"<loc>https://www.example.test/</loc>",
+		"<loc>https://www.example.test/</loc><lastmod>2026-08-15T12:00:00Z</lastmod>",
+		"<loc>https://www.example.test/posts</loc><lastmod>2026-08-15T12:00:00Z</lastmod>",
 		"<loc>https://www.example.test/about</loc>",
 		"<loc>https://www.example.test/hidden</loc>",
 		"<loc>https://www.example.test/posts</loc>",
 		"<loc>https://www.example.test/posts/2026/08/15/hello</loc>",
 		"<lastmod>2026-08-15",
-		"<loc>https://www.example.test/tag/go</loc>",
 		"<loc>https://www.example.test/dir</loc>",
 		"<loc>https://www.example.test/dir/hello</loc>",
 		"<lastmod>2026-09-01",
@@ -1599,10 +1601,13 @@ func TestSitemap(t *testing.T) {
 			t.Errorf("sitemap missing %q in:\n%s", want, body)
 		}
 	}
-	for _, gone := range []string{"jasonernst.com", "/off<", "/draft<", "/archives<", "/tags<"} {
+	for _, gone := range []string{"jasonernst.com", "/off<", "/draft<", "/archives<", "/tags<", "/tag/"} {
 		if strings.Contains(body, gone) {
 			t.Errorf("sitemap must not contain %q:\n%s", gone, body)
 		}
+	}
+	if n := strings.Count(body, "<loc>https://www.example.test/posts</loc>"); n != 1 {
+		t.Errorf("/posts listed %d times, want 1:\n%s", n, body)
 	}
 
 	// Without site_url the request's own host is used.

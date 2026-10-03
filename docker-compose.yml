@@ -1,56 +1,39 @@
-version: "3.0"
+# goblog with SQLite: one container, one volume. Everything goblog writes
+# (.env, the database, uploads, installed plugins and themes) lives in the
+# goblog-data volume, so `docker compose pull && docker compose up -d`
+# upgrades without losing the site.
+#
+#   docker compose up -d
+#   docker compose logs goblog | grep "setup code"
+#
+# then open http://localhost:7000 and follow the install wizard.
 services:
-  db:
-    container_name: db
-    image: mysql:9.6
-    restart: always
-    env_file:
-      template.env
-    ports:
-      - "3306:3306"
-
-  # Alternative to the mysql service above: set database=postgres and the
-  # POSTGRES_* variables in template.env, then swap the goblog service's
-  # depends_on to db-postgres.
-  # db-postgres:
-  #   container_name: db-postgres
-  #   image: postgres:16-alpine
-  #   restart: always
-  #   environment:
-  #     POSTGRES_DB: goblog
-  #     POSTGRES_USER: goblog
-  #     POSTGRES_PASSWORD: somedbpass
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - ./pgdata:/var/lib/postgresql/data
-
-  phpmyadmin:
-    depends_on:
-      - db
-    container_name: phpmyadmin
-    image: phpmyadmin/phpmyadmin
-    restart: always
-    env_file:
-      template.env
-    ports:
-      - '8080:80'
-
   goblog:
-    build:
-      context: .
-      args:
-        VERSION: develop
     image: compscidr/goblog:latest
-    container_name: goblog
-    depends_on:
-      - db
-    restart: always
-    env_file:
-      template.env
+    # To run what is checked out here instead of the released image:
+    # build: .
+    restart: unless-stopped
+    environment:
+      GOBLOG_DATA_DIR: /data
     ports:
       - "7000:7000"
     volumes:
-      - ./template.env:/go/src/github.com/compscidr/goblog/local.env
-      - ../:/var/www/html/
-      - ${PWD}/test.db:/go/src/github.com/compscidr/goblog/test.db
+      - goblog-data:/data
+
+  # PostgreSQL instead of SQLite: uncomment this service and the volume
+  # below, run `docker compose up -d`, and in the install wizard choose
+  # PostgreSQL with host "postgres", user and database "goblog" and the
+  # password set here. MySQL works the same way with the mysql:9 image.
+  # postgres:
+  #   image: postgres:16-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: goblog
+  #     POSTGRES_USER: goblog
+  #     POSTGRES_PASSWORD: change-me
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  goblog-data:
+  # postgres-data:

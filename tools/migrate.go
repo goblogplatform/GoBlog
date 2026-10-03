@@ -568,7 +568,10 @@ func cleanupEmptyTags(db *gorm.DB) {
 // once-escaped form. The old URLs still resolve: lookups canonicalize too.
 func repairOverEscapedSlugs(db *gorm.DB) {
 	var posts []blog.Post
-	db.Select("id", "slug").Find(&posts)
+	if err := db.Select("id", "slug").Find(&posts).Error; err != nil {
+		log.Printf("Warning: failed to load posts for slug repair: %v", err)
+		return
+	}
 	for _, post := range posts {
 		fixed := blog.CanonicalSlug(post.Slug)
 		if fixed == post.Slug {

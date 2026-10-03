@@ -120,7 +120,10 @@ func (a *Admin) UpdateDb(db *gorm.DB) {
 }
 
 // ////JSON API///////
+// safeSlug is idempotent: the admin sends back the stored, already escaped
+// slug on every save, and escaping that again grew it by a layer each time.
 func safeSlug(slug string) string {
+	slug = blog.UnescapeSlug(slug)
 	slug = strings.ReplaceAll(slug, " ", "-")
 	slug = strings.ReplaceAll(slug, "/", "")
 	slug = strings.ReplaceAll(slug, ".", "-")

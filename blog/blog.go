@@ -310,11 +310,11 @@ func (b *Blog) GetPostObject(c *gin.Context) (*Post, error) {
 		return nil, errors.New("day must be an integer")
 	}
 	slug := c.Param("slug")
-	slug = url.QueryEscape(slug)
+	slug = CanonicalSlug(slug)
 
 	log.Println("Looking for post: ", year, "/", month, "/", day, "/", slug)
 
-	if err := (*b.db).Preload("Tags").Preload("PostType").Where("created_at > ? AND slug LIKE ?", time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC), slug).First(&post).Error; err != nil {
+	if err := (*b.db).Preload("Tags").Preload("PostType").Where("created_at > ? AND LOWER(slug) = LOWER(?)", time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC), slug).First(&post).Error; err != nil {
 		return nil, errors.New("No post at " + strconv.Itoa(year) + "/" + strconv.Itoa(month) + "/" + strconv.Itoa(day) + "/" + slug)
 	}
 
@@ -323,11 +323,14 @@ func (b *Blog) GetPostObject(c *gin.Context) (*Post, error) {
 	return &post, nil
 }
 
+// Posts are matched on the canonical slug, exactly: with LIKE the slug's
+// own %XX escapes were wildcards. LOWER keeps the match case-insensitive
+// on every database, as sqlite's LIKE was.
 func (b *Blog) getPostByParams(year int, month int, day int, slug string) (*Post, error) {
 	log.Println("trying: " + strconv.Itoa(year) + "/" + strconv.Itoa(month) + "/" + strconv.Itoa(day) + "/" + slug)
 	var post Post
-	slug = url.QueryEscape(slug)
-	if err := (*b.db).Preload("Tags").Preload("PostType").Where("created_at > ? AND slug LIKE ?", time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC), slug).First(&post).Error; err != nil {
+	slug = CanonicalSlug(slug)
+	if err := (*b.db).Preload("Tags").Preload("PostType").Where("created_at > ? AND LOWER(slug) = LOWER(?)", time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC), slug).First(&post).Error; err != nil {
 		log.Println("NOT FOUND")
 		return nil, errors.New("No post at " + strconv.Itoa(year) + "/" + strconv.Itoa(month) + "/" + strconv.Itoa(day) + "/" + slug)
 	}
@@ -626,9 +629,9 @@ func (b *Blog) getPostByTypeAndParams(typeSlug string, year int, month int, day 
 		return nil, err
 	}
 	var post Post
-	slug = url.QueryEscape(slug)
+	slug = CanonicalSlug(slug)
 	if err := (*b.db).Preload("Tags").Preload("PostType").
-		Where("post_type_id = ? AND created_at > ? AND slug LIKE ?", pt.ID, time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC), slug).
+		Where("post_type_id = ? AND created_at > ? AND LOWER(slug) = LOWER(?)", pt.ID, time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC), slug).
 		First(&post).Error; err != nil {
 		return nil, errors.New("No post at " + typeSlug + "/" + strconv.Itoa(year) + "/" + strconv.Itoa(month) + "/" + strconv.Itoa(day) + "/" + slug)
 	}

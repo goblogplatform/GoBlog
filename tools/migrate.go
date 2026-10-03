@@ -445,6 +445,7 @@ func Migrate(db *gorm.DB) error {
 	seedDefaultPages(db)
 	linkWritingPagesToPostType(db)
 	cleanupEmptyTags(db)
+	repairOverEscapedSlugs(db)
 	cleanupSelfExternalBacklinks(db)
 	migrateSocialURLsToPlugin(db)
 	cleanupPluginSettingsFromMainTable(db)
@@ -560,6 +561,29 @@ func cleanupEmptyTags(db *gorm.DB) {
 	}
 	if err := db.Exec("DELETE FROM tags WHERE name = ''").Error; err != nil {
 		log.Printf("Warning: failed to clean up empty tag: %v", err)
+	}
+}
+
+// repairOverEscapedSlugs rewrites post slugs that earlier versions escaped
+// again on every save (%3A became %253A, then %25253A) to the canonical,
+// once-escaped form. The old URLs still resolve: lookups canonicalize too.
+func repairOverEscapedSlugs(db *gorm.DB) {
+	var posts []blog.Post
+	if err := db.Select("id", "slug").Find(&posts).Error; err != nil {
+		log.Printf("Warning: failed to load posts for slug repair: %v", err)
+		return
+	}
+	for _, post := range posts {
+		fixed := blog.CanonicalSlug(post.Slug)
+		if fixed == post.Slug {
+			continue
+		}
+		// UpdateColumn: the post's content did not change, so neither does UpdatedAt.
+		if err := db.Model(&blog.Post{}).Where("id = ?", post.ID).UpdateColumn("slug", fixed).Error; err != nil {
+			log.Printf("Warning: failed to repair slug of post %d: %v", post.ID, err)
+			continue
+		}
+		log.Printf("Repaired slug of post %d: %s -> %s", post.ID, post.Slug, fixed)
 	}
 }
 

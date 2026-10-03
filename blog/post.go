@@ -3,6 +3,7 @@ package blog
 import (
 	"bytes"
 	"html/template"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -158,6 +159,25 @@ func (p Post) HTMLPreview(length int) template.HTML {
 		return template.HTML(result)
 	}
 	return template.HTML(s)
+}
+
+// UnescapeSlug undoes every layer of URL escaping on a slug, so one that
+// has been escaped more than once (%253A) comes back as plain text (:).
+func UnescapeSlug(slug string) string {
+	for {
+		plain, err := url.PathUnescape(slug)
+		if err != nil || plain == slug {
+			return slug
+		}
+		slug = plain
+	}
+}
+
+// CanonicalSlug is the one stored form of a slug: escaped exactly once,
+// however many times the input already was. Posts are looked up by it, so
+// a URL that carries extra layers still finds its post.
+func CanonicalSlug(slug string) string {
+	return url.QueryEscape(UnescapeSlug(slug))
 }
 
 // Permalink returns the link to the post relative to root

@@ -2073,3 +2073,54 @@ func TestCustomPage_ServerRendered(t *testing.T) {
 		}
 	}
 }
+
+// TestCanonicalSlug: a slug is escaped exactly once, however many layers
+// of escaping it arrives with, and a lone % is not mistaken for an escape.
+func TestCanonicalSlug(t *testing.T) {
+	for in, want := range map[string]string{
+		"hello":         "hello",
+		"A:-b":          "A%3A-b",
+		"A%3A-b":        "A%3A-b",
+		"A%253A-b":      "A%3A-b",
+		"A%25253A-b":    "A%3A-b",
+		"100%-done":     "100%25-done",
+		"100%25-done":   "100%25-done",
+		"100%2525-done": "100%25-done",
+	} {
+		if got := blog.CanonicalSlug(in); got != want {
+			t.Errorf("CanonicalSlug(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// TestPostLookupBySlug: a post answers at its canonical URL and at the
+// over-escaped URLs earlier versions produced, in any case — and a % in
+// the URL is not a wildcard that finds some other post.
+func TestPostLookupBySlug(t *testing.T) {
+	db, _ := gorm.Open(sqlite.Open(":memory:"))
+	db.AutoMigrate(&auth.BlogUser{}, &blog.PostType{}, &blog.Post{}, &blog.Tag{}, &blog.Comment{}, &blog.Page{}, &blog.Setting{})
+	pt := blog.PostType{Name: "Post", Slug: "posts"}
+	db.Create(&pt)
+	day := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	db.Create(&blog.Post{Title: "A: b", Slug: "A%3A-b", Content: "hi", PostTypeID: pt.ID, CreatedAt: day})
+	db.Create(&blog.Post{Title: "foo 25 bar", Slug: "foo-25-bar", Content: "hi", PostTypeID: pt.ID, CreatedAt: day})
+	b := blog.New(db, &Auth{}, "test")
+	router := gin.New()
+	router.GET("/api/v1/posts/:yyyy/:mm/:dd/:slug", b.GetPost)
+
+	for path, want := range map[string]int{
+		"/api/v1/posts/2026/08/15/A%3A-b":     http.StatusOK,
+		"/api/v1/posts/2026/08/15/A%253A-b":   http.StatusOK,
+		"/api/v1/posts/2026/08/15/A%25253A-b": http.StatusOK,
+		"/api/v1/posts/2026/08/15/a%3a-B":     http.StatusOK,
+		"/api/v1/posts/2026/08/15/foo-25-bar": http.StatusOK,
+		"/api/v1/posts/2026/08/15/foo%25-bar": http.StatusBadRequest, // GetPost's not-found; LIKE read this as foo<anything>25-bar
+	} {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", path, nil)
+		router.ServeHTTP(w, req)
+		if w.Code != want {
+			t.Errorf("GET %s = %d, want %d", path, w.Code, want)
+		}
+	}
+}

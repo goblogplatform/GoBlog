@@ -4,7 +4,7 @@
       <a href="/posts" title="Read posts by {{ .settings.site_title.Value }}"><img src="{{ .settings.landing_page_image.Value }}" class="rounded-circle img-responsive profile" style="max-width:300px;" alt="{{ .settings.site_title.Value }}"/></a>
       <h1>{{ .settings.site_title.Value }}</h1>
       <h4>{{ .settings.site_subtitle.Value }}</h4>
-      <div style="width: 355px; margin: auto;">
+      <div style="width: fit-content; max-width: 100%; margin: auto;">
         <p class="keywords">
           {{ .settings.site_tags.Value }}
         </p>

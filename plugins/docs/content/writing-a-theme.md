@@ -91,7 +91,7 @@ Beyond those, each template gets its own data. This is the contract of the runni
 | `admin*.html` | `/admin/…` | per page: `posts`, `post_types`, `pages`, `comments`, `users`, `themes`, `setting_groups`, `plugin`, … — read `admin/admin.go` and `admin/plugins.go` before overriding one |
 | `wizard_*.html` | the install wizard, before there is a database | only `version` and `title` (and `errors`) — none of the common keys exist yet |
 
-Six templates in default — `about.html`, `archives.html`, `posts.html`, `presentations.html`, `projects.html`, `tags.html` — are left over from before pages were configurable; no route renders them today, so there is nothing to override. Post, page, tag and setting objects are goblog's own types: `.post.Title`, `.post.Permalink`, `.post.Tags`, `.post.CreatedAt.Format "Jan 02, 2006"`, `.page.HasHero`, `.page.HeroURL`. Default's templates show what each has; the Go types are in `blog/`.
+Post, page, tag and setting objects are goblog's own types: `.post.Title`, `.post.Permalink`, `.post.Tags`, `.post.CreatedAt.Format "Jan 02, 2006"`, `.page.HasHero`, `.page.HeroURL`. Default's templates show what each has; the Go types are in `blog/`.
 
 Post, page and comment bodies are rendered to HTML by goblog: use
 `{{ .post.HTML }}`, `{{ .page.HTML }}` and, for each comment, `{{ .HTML }}`.

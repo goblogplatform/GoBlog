@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/goblogplatform/goblog/branch/main/graph/badge.svg)](https://codecov.io/gh/goblogplatform/goblog)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-GoBlog is a simple, self-hosted blogging platform written in Go, with Markdown posts, themes, plugins, comments and an admin dashboard. Running at https://www.jasonernst.com
+GoBlog is a simple, self-hosted blogging platform written in Go, with Markdown posts, themes, plugins, comments and an admin dashboard. Official site: https://www.goblog.live
 
 Upgrading an existing site? See [UPGRADING.md](UPGRADING.md) for release-specific steps.
 
@@ -245,6 +245,13 @@ This is the same check goblog.live runs on every submission to the plugin direct
 [goblog.live/plugins](https://goblog.live/plugins) lists published plugins; `https://goblog.live/plugins/index.json` is the same list as JSON (name, version, author, license, `download_url`, `sha256`, `min_goblog_version`, `runtime`, `allowed_hosts`) and `/plugins/<name>.json` carries one plugin's README, changelog and release history — full field-by-field detail at [Directory formats](https://www.goblog.live/docs/directory-formats). Plugins are individual GitHub repositories with releases — see [Publishing a plugin](https://www.goblog.live/docs/publishing-a-plugin). To publish one, paste its URL at [goblog.live/plugins/submit](https://goblog.live/plugins/submit): it is validated on the spot (latest release, manifest, `plugin.wasm` loads and its name/version match) and listed once a maintainer approves it.
 
 The directory is the built-in `directory` plugin, so any goblog can host one: turn it on under **Admin → Settings → Plugin Directory** (`enabled` = `true`). Submissions are stored in the site's database and reviewed under **Admin → Plugins → Directory**, where you can also add repositories yourself, rebuild an entry or delist it. Listed plugins are re-checked every `refresh_minutes` (default 360) for new releases and star counts. The GitHub API allows 60 anonymous requests per hour; set `github_token` (any token, no scopes needed) to raise that to 5000 if you list more than a handful of plugins. README, changelog and release-note HTML is rendered by GitHub's markdown API and shown as-is on the directory pages; the admin sees it in the pending card before approving.
+
+## Sites running GoBlog
+
+- [goblog.live](https://www.goblog.live) — the official GoBlog site, with docs and the plugin and theme directories
+- [jasonernst.com](https://www.jasonernst.com)
+
+Running GoBlog yourself? [Open a pull request](https://github.com/goblogplatform/goblog/edit/main/README.md) adding your site to this list.
 
 ## Testing
 ```bash

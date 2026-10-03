@@ -60,6 +60,7 @@ var settingGroups = []settingGroupDef{
 		{Key: "favicon", Label: "Favicon", Help: "Icon shown in the browser tab."},
 		{Key: "custom_header_code", Label: "Custom header code", Help: "HTML added to the <head> of every page."},
 		{Key: "custom_footer_code", Label: "Custom footer code", Help: "HTML added before </body> on every page."},
+		{Key: "show_powered_by", Label: "Show \"Powered by goblog\"", Help: "Credit line with a link to goblog.live in the footer."},
 	}},
 	{ID: "comments", Title: "Comments", Settings: []settingMeta{
 		{Key: "comments_require_login", Label: "Require login to comment", Help: "When off, anyone can leave a comment."},

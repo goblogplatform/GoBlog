@@ -1,0 +1,11 @@
+{{/*
+_powered_by renders the "Powered by goblog" credit, unless the
+show_powered_by setting is off. A theme's footer includes it with
+{{ template "_powered_by" . }} inside whatever element it styles the line
+with, so the link and the setting live here rather than in every theme.
+The wizard pages have no settings yet and always show it.
+*/}}
+{{ define "_powered_by" -}}
+{{ $show := true }}{{ with .settings }}{{ if eq (index . "show_powered_by").Value "false" }}{{ $show = false }}{{ end }}{{ end -}}
+{{ if $show }}<span class="powered-by">Powered by <a href="https://www.goblog.live" target="goblog {{ .version }}">goblog {{ .version }}</a></span>{{ end }}
+{{- end }}

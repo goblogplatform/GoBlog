@@ -1,0 +1,25 @@
+name: Install Smoke Test
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+
+  install:
+    name: Fresh install (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mysql, postgres]
+    steps:
+
+      - name: Check out code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      # Builds the Docker image and walks the install wizard against a
+      # fresh database (#651).
+      - name: Install smoke test
+        run: scripts/install-smoke-test.sh ${{ matrix.database }}

@@ -8,6 +8,7 @@ import (
 	"goblog/blog"
 	gplugin "goblog/plugin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"log"
 	"net/url"
 	"regexp"
@@ -340,7 +341,7 @@ func seedDefaultSettings(db *gorm.DB) {
 		{Key: "theme_directory_url", Type: "text", Value: "https://www.goblog.live/themes/index.json"},
 	}
 	for _, s := range defaults {
-		db.Where("key = ?", s.Key).FirstOrCreate(&s)
+		db.Where(map[string]any{"key": s.Key}).FirstOrCreate(&s)
 	}
 }
 
@@ -468,7 +469,7 @@ func migrateSocialURLsToPlugin(db *gorm.DB) {
 
 	for _, key := range socialKeys {
 		var setting blog.Setting
-		if err := db.Where("key = ?", key).First(&setting).Error; err != nil {
+		if err := db.Where(map[string]any{"key": key}).First(&setting).Error; err != nil {
 			continue // not found, skip
 		}
 		if setting.Value == "" {
@@ -480,11 +481,11 @@ func migrateSocialURLsToPlugin(db *gorm.DB) {
 			Key:        key,
 			Value:      setting.Value,
 		}
-		db.Where("plugin_name = ? AND key = ?", "socialicons", key).FirstOrCreate(&ps)
+		db.Where(map[string]any{"plugin_name": "socialicons", "key": key}).FirstOrCreate(&ps)
 	}
 
 	// Also ensure the enabled setting exists
-	db.Where("plugin_name = ? AND key = ?", "socialicons", "enabled").
+	db.Where(map[string]any{"plugin_name": "socialicons", "key": "enabled"}).
 		FirstOrCreate(&gplugin.PluginSetting{
 			PluginName: "socialicons",
 			Key:        "enabled",
@@ -492,7 +493,7 @@ func migrateSocialURLsToPlugin(db *gorm.DB) {
 		})
 
 	// Remove migrated keys from main settings table
-	db.Where("key IN ?", socialKeys).Delete(&blog.Setting{})
+	db.Where(map[string]any{"key": socialKeys}).Delete(&blog.Setting{})
 }
 
 // cleanupPluginSettingsFromMainTable removes known plugin-namespaced keys
@@ -501,7 +502,7 @@ func migrateSocialURLsToPlugin(db *gorm.DB) {
 func cleanupPluginSettingsFromMainTable(db *gorm.DB) {
 	knownPrefixes := []string{"analytics.%", "socialicons.%", "scholar.%"}
 	for _, prefix := range knownPrefixes {
-		result := db.Exec("DELETE FROM settings WHERE key LIKE ?", prefix)
+		result := db.Where("? LIKE ?", clause.Column{Name: "key"}, prefix).Delete(&blog.Setting{})
 		if result.Error != nil {
 			log.Printf("Warning: failed to clean up %s from main table: %v", prefix, result.Error)
 			continue
@@ -518,7 +519,7 @@ func cleanupPluginSettingsFromMainTable(db *gorm.DB) {
 func cleanupSelfExternalBacklinks(db *gorm.DB) {
 	var siteHosts []string
 	var siteURLSetting blog.Setting
-	if err := db.Where("key = ?", "site_url").First(&siteURLSetting).Error; err == nil {
+	if err := db.Where(map[string]any{"key": "site_url"}).First(&siteURLSetting).Error; err == nil {
 		if siteURL, err := url.Parse(siteURLSetting.Value); err == nil {
 			siteHosts = append(siteHosts, siteURL.Host)
 		}

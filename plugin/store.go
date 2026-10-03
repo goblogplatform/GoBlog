@@ -62,7 +62,7 @@ func (s *dbStore) Get(pluginName, key string) ([]byte, bool, error) {
 		return nil, false, err
 	}
 	var e PluginStoreEntry
-	err = db.Where("plugin_name = ? AND key = ?", pluginName, key).First(&e).Error
+	err = db.Where(map[string]any{"plugin_name": pluginName, "key": key}).First(&e).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, false, nil
 	}
@@ -97,16 +97,16 @@ func (s *dbStore) Set(pluginName, key string, value []byte) error {
 // quota. An overwrite frees its old value first and never adds a row.
 func checkQuota(db *gorm.DB, pluginName, key string, newBytes int) error {
 	var usage struct {
-		Rows  int64
-		Bytes int64
+		RowCount int64
+		Bytes    int64
 	}
 	if err := db.Model(&PluginStoreEntry{}).
-		Select("COUNT(*) AS rows, COALESCE(SUM(LENGTH(value)), 0) AS bytes").
-		Where("plugin_name = ? AND key <> ?", pluginName, key).
+		Select("COUNT(*) AS row_count, COALESCE(SUM(LENGTH(value)), 0) AS bytes").
+		Where("plugin_name = ?", pluginName).Not(map[string]any{"key": key}).
 		Scan(&usage).Error; err != nil {
 		return fmt.Errorf("plugin store: usage: %w", err)
 	}
-	if usage.Rows >= MaxStorePluginRows {
+	if usage.RowCount >= MaxStorePluginRows {
 		return fmt.Errorf("plugin store: plugin has reached its %d-key quota", MaxStorePluginRows)
 	}
 	if usage.Bytes+int64(newBytes) > MaxStorePluginBytes {
@@ -120,7 +120,7 @@ func (s *dbStore) Delete(pluginName, key string) error {
 	if err != nil {
 		return err
 	}
-	return db.Where("plugin_name = ? AND key = ?", pluginName, key).Delete(&PluginStoreEntry{}).Error
+	return db.Where(map[string]any{"plugin_name": pluginName, "key": key}).Delete(&PluginStoreEntry{}).Error
 }
 
 func (s *dbStore) List(pluginName, prefix string) ([]string, error) {
@@ -131,9 +131,9 @@ func (s *dbStore) List(pluginName, prefix string) ([]string, error) {
 	var keys []string
 	q := db.Model(&PluginStoreEntry{}).Where("plugin_name = ?", pluginName)
 	if prefix != "" {
-		q = q.Where("key LIKE ? ESCAPE '\\'", escapeLike(prefix)+"%")
+		q = q.Where("? LIKE ? ESCAPE '!'", clause.Column{Name: "key"}, escapeLike(prefix)+"%")
 	}
-	if err := q.Order("key asc").Pluck("key", &keys).Error; err != nil {
+	if err := q.Order(clause.OrderByColumn{Column: clause.Column{Name: "key"}}).Pluck("key", &keys).Error; err != nil {
 		return nil, err
 	}
 	return keys, nil
@@ -147,12 +147,14 @@ func (s *dbStore) DeleteAll(pluginName string) error {
 	return db.Where("plugin_name = ?", pluginName).Delete(&PluginStoreEntry{}).Error
 }
 
-// escapeLike escapes LIKE wildcards so a prefix is matched literally.
+// escapeLike escapes LIKE wildcards so a prefix is matched literally. The
+// escape character is '!' rather than a backslash, which MySQL would read
+// as escaping the closing quote of ESCAPE '\'.
 func escapeLike(s string) string {
 	out := make([]byte, 0, len(s))
 	for i := 0; i < len(s); i++ {
-		if s[i] == '%' || s[i] == '_' || s[i] == '\\' {
-			out = append(out, '\\')
+		if s[i] == '%' || s[i] == '_' || s[i] == '!' {
+			out = append(out, '!')
 		}
 		out = append(out, s[i])
 	}

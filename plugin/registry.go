@@ -209,7 +209,7 @@ func (r *Registry) Init() error {
 func initPlugin(db *gorm.DB, p Plugin) error {
 	for _, s := range p.Settings() {
 		setting := PluginSetting{PluginName: p.Name(), Key: s.Key, Value: s.DefaultValue}
-		db.Where("plugin_name = ? AND key = ?", p.Name(), s.Key).FirstOrCreate(&setting)
+		db.Where(map[string]any{"plugin_name": p.Name(), "key": s.Key}).FirstOrCreate(&setting)
 	}
 	ensurePages(db, p)
 	if err := p.OnInit(db); err != nil {
@@ -673,7 +673,7 @@ func (r *Registry) HasPageType(pageType string) bool {
 
 // UpdateSetting saves a single plugin setting.
 func (r *Registry) UpdateSetting(pluginName, key, value string) {
-	r.db.Where("plugin_name = ? AND key = ?", pluginName, key).
+	r.db.Where(map[string]any{"plugin_name": pluginName, "key": key}).
 		Assign(PluginSetting{Value: value}).
 		FirstOrCreate(&PluginSetting{PluginName: pluginName, Key: key, Value: value})
 }

@@ -21,7 +21,7 @@ type Page struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 	DeletedAt *time.Time `sql:"index" json:"deleted_at,omitempty"`
 	Title     string     `json:"title"`
-	Slug      string     `gorm:"uniqueIndex" json:"slug"`
+	Slug      string     `gorm:"uniqueIndex:,length:191" json:"slug"` // length: MySQL cannot index a text column without one; other databases ignore it
 	Content   string     `sql:"type:text;" json:"content"`
 	HeroURL   string     `json:"hero_url"`
 	HeroType  string     `json:"hero_type"` // "image" or "video"

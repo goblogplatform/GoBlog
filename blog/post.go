@@ -40,7 +40,7 @@ type Backlink struct {
 type ExternalBacklink struct {
 	ID        uint      `gorm:"primaryKey"`
 	PostID    uint      `gorm:"uniqueIndex:idx_post_referer" json:"post_id"`
-	Referer   string    `gorm:"uniqueIndex:idx_post_referer;type:text" json:"referer"`
+	Referer   string    `gorm:"uniqueIndex:idx_post_referer,length:255;type:text" json:"referer"` // length: see Page.Slug
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
 	HitCount  int       `json:"hit_count"`

@@ -28,7 +28,6 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 
-	"github.com/ikeikeikeike/go-sitemap-generator/v2/stm"
 )
 
 // PageFilter is a function that decides whether a page should be shown.
@@ -1229,17 +1228,60 @@ func (b *Blog) SiteURL(c *gin.Context) string {
 	return scheme + "://" + c.Request.Host
 }
 
-// Sitemap serves /sitemap.xml: the home page, every enabled page (nav or
-// not), post type listings, published posts (with lastmod), tags in use,
-// and whatever URLs enabled plugins list for the pages under their slugs.
-// Every loc is under SiteURL.
+type sitemapURLSet struct {
+	XMLName xml.Name       `xml:"urlset"`
+	Xmlns   string         `xml:"xmlns,attr"`
+	URLs    []sitemapEntry `xml:"url"`
+}
+
+type sitemapEntry struct {
+	Loc     string `xml:"loc"`
+	LastMod string `xml:"lastmod,omitempty"`
+}
+
+// Sitemap serves /sitemap.xml: the home page, post type listings, every
+// enabled page (nav or not), published posts, and whatever URLs enabled
+// plugins list for the pages under their slugs. Tag pages are left out:
+// they only re-list posts that are already here. Every loc is under
+// SiteURL and appears once. lastmod is the date the content last changed
+// — for the home page or a listing, that of its newest post — and is left
+// out when that is not known, never filled in with the time of the request.
 func (b *Blog) Sitemap(c *gin.Context) {
 	host := b.SiteURL(c)
-	sm := stm.NewSitemap(1)
-	sm.SetDefaultHost(host)
-	sm.Create()
+	set := sitemapURLSet{Xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9"}
+	seen := map[string]bool{}
+	add := func(path string, lastMod time.Time) {
+		if seen[path] {
+			return
+		}
+		seen[path] = true
+		entry := sitemapEntry{Loc: host + path}
+		if !lastMod.IsZero() {
+			entry.LastMod = lastMod.UTC().Format(time.RFC3339)
+		}
+		set.URLs = append(set.URLs, entry)
+	}
+	newer := func(a, b time.Time) time.Time {
+		if b.After(a) {
+			return b
+		}
+		return a
+	}
 
-	sm.Add(stm.URL{{"loc", "/"}, {"changefreq", "weekly"}, {"priority", 1.0}})
+	posts := b.GetPosts(false)
+	var newest time.Time
+	byType := map[uint]time.Time{}
+	for _, post := range posts {
+		newest = newer(newest, post.UpdatedAt)
+		byType[post.PostTypeID] = newer(byType[post.PostTypeID], post.UpdatedAt)
+	}
+
+	add("/", newest)
+	// Before pages: a listing usually has a page at the same path, and the
+	// listing's date (its newest post) is the one that says when it changed.
+	for _, pt := range b.GetPostTypes() {
+		add(pt.Permalink(), byType[pt.ID])
+	}
 
 	var pages []Page
 	(*b.db).Where("enabled = ?", true).Order("nav_order asc").Find(&pages)
@@ -1247,32 +1289,24 @@ func (b *Blog) Sitemap(c *gin.Context) {
 		if b.PageFilter != nil && !b.PageFilter(page) {
 			continue
 		}
-		sm.Add(stm.URL{{"loc", page.PagePermalink()}, {"changefreq", "weekly"}, {"priority", 0.7}})
+		add(page.PagePermalink(), page.UpdatedAt)
 	}
 
-	for _, pt := range b.GetPostTypes() {
-		sm.Add(stm.URL{{"loc", pt.Permalink()}, {"changefreq", "weekly"}, {"priority", 0.7}})
-	}
-
-	for _, post := range b.GetPosts(false) {
-		sm.Add(stm.URL{{"loc", post.Permalink()}, {"lastmod", post.UpdatedAt}, {"changefreq", "yearly"}, {"priority", 0.55}})
-	}
-	for _, tag := range b.getTags() {
-		if len(tag.Posts) > 0 {
-			sm.Add(stm.URL{{"loc", tag.Permalink()}, {"changefreq", "weekly"}, {"priority", 0.55}})
-		}
+	for _, post := range posts {
+		add(post.Permalink(), post.UpdatedAt)
 	}
 	if r := pluginRegistryFrom(c); r != nil {
 		for _, u := range r.SitemapURLs(c) {
-			entry := stm.URL{{"loc", u.Loc}, {"changefreq", "weekly"}, {"priority", 0.6}}
-			if !u.LastMod.IsZero() {
-				entry = append(entry, []interface{}{"lastmod", u.LastMod})
-			}
-			sm.Add(entry)
+			add(u.Loc, u.LastMod)
 		}
 	}
 
-	c.Data(http.StatusOK, "application/xml; charset=utf-8", sm.XMLContent())
+	out, err := xml.Marshal(set)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "sitemap: %v", err)
+		return
+	}
+	c.Data(http.StatusOK, "application/xml; charset=utf-8", append([]byte(xml.Header), out...))
 }
 
 // feedItems is how many posts the RSS feed carries.

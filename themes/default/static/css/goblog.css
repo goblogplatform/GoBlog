@@ -33,7 +33,10 @@ body { font-family: 'Source Code Pro', monospace; min-height:100vh; display:flex
 .bottom { min-height: 200px; width: 100%; background-color: #333333; color: #EEE; }
 .bottom a { color: #EEE; }
 /* text animation */
-@keyframes animated-text{  from{width: 0;} to{width: 350px;} }
+/* percentages of the fit-content wrapper, so the line types out to the full length of whatever site_tags holds */
+@keyframes animated-text{  from{width: 0%;} to{width: 100%;} }
+/* too narrow for one line: wrap instead of typing, which would clip */
+@media (max-width: 600px) { .keywords { white-space: normal; animation: none; border-right: 0; } }
 /* cursor animations */
 @keyframes animated-cursor{ from{border-right-color: rgba(0,0,0,.75);} to{border-right-color: transparent;}  }
 

@@ -7,6 +7,7 @@ import (
 	"goblog/admin"
 	"goblog/auth"
 	"goblog/blog"
+	"goblog/datadir"
 	"goblog/mail"
 	gplugin "goblog/plugin"
 	"goblog/plugin/installer"
@@ -48,7 +49,7 @@ type goblog struct {
 }
 
 func envFilePresent() bool {
-	_, err := os.Stat(".env")
+	_, err := os.Stat(datadir.Path(".env"))
 	if err != nil {
 		return false
 	}
@@ -56,7 +57,7 @@ func envFilePresent() bool {
 }
 
 func isAuthConfigured() bool {
-	envFile, err := godotenv.Read(".env")
+	envFile, err := godotenv.Read(datadir.Path(".env"))
 	if err != nil {
 		log.Println("Couldn't read the .env file: " + err.Error())
 		return false
@@ -68,7 +69,7 @@ func isAuthConfigured() bool {
 }
 
 func attemptConnectDb() *gorm.DB {
-	envFile, err := godotenv.Read(".env")
+	envFile, err := godotenv.Read(datadir.Path(".env"))
 	if err != nil {
 		log.Println("Couldn't read the .env file: " + err.Error())
 		return nil
@@ -98,7 +99,7 @@ func (g *goblog) rootHandler(c *gin.Context) {
 		return
 	} else {
 		log.Println("Root handler:  Found .env file")
-		envFile, err := godotenv.Read(".env")
+		envFile, err := godotenv.Read(datadir.Path(".env"))
 		if err != nil {
 			c.HTML(http.StatusOK, "wizard_db.html", gin.H{
 				"version": Version,
@@ -216,12 +217,19 @@ func main() {
 		os.Exit(runValidatePlugin(os.Args[2:], os.Stdout, os.Stderr))
 	}
 	log.Println("Starting blog version: ", Version)
+	if dir := datadir.Dir(); dir != "" {
+		log.Println("Data directory: " + dir)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			log.Println("Couldn't create the data directory: " + err.Error())
+			return
+		}
+	}
 	var sessionKey string
 	var db *gorm.DB = nil
 	if !envFilePresent() {
 		log.Println("No .env file found, creating one with a new session key")
 		sessionKey = uuid.New().String()
-		f, err := os.Create(".env")
+		f, err := os.Create(datadir.Path(".env"))
 		if err != nil {
 			log.Println("Couldn't create the .env file: " + err.Error())
 			return
@@ -234,7 +242,7 @@ func main() {
 		}
 	} else {
 		log.Println("Found .env file")
-		envFile, err := godotenv.Read(".env")
+		envFile, err := godotenv.Read(datadir.Path(".env"))
 		if err != nil {
 			log.Println("Couldn't read the .env file: " + err.Error())
 			return
@@ -243,7 +251,7 @@ func main() {
 		if (sessionKey == "") || (len(sessionKey) != 36) {
 			log.Println("No session key found or it's invalid, creating a new one")
 			sessionKey = uuid.New().String()
-			f, err := os.OpenFile(".env", os.O_APPEND|os.O_WRONLY, 0644)
+			f, err := os.OpenFile(datadir.Path(".env"), os.O_APPEND|os.O_WRONLY, 0644)
 			if err != nil {
 				log.Println("Couldn't open the .env file: " + err.Error())
 				return
@@ -279,7 +287,7 @@ func main() {
 
 	// The wizard and admin pin read settings lazily via os.Getenv after a
 	// godotenv.Load; SMTP is needed at startup, so load once here too.
-	if err := godotenv.Load(".env"); err != nil {
+	if err := godotenv.Load(datadir.Path(".env")); err != nil {
 		log.Println("Couldn't load .env into the environment: " + err.Error())
 	}
 
@@ -313,15 +321,15 @@ func main() {
 	registry.Register(docs.New())
 	dynamicEnabled := os.Getenv("ENABLE_DYNAMIC_PLUGINS") == "true"
 	if dynamicEnabled {
-		gplugin.LoadDynamicPlugins(registry, "plugins/dynamic")
+		gplugin.LoadDynamicPlugins(registry, datadir.Path("plugins/dynamic"))
 	}
 	wasmEnabled := os.Getenv("ENABLE_WASM_PLUGINS") != "false"
 	if wasmEnabled {
-		wasm.LoadWasmPlugins(registry, "plugins/wasm", registry.Store())
+		wasm.LoadWasmPlugins(registry, datadir.Path("plugins/wasm"), registry.Store())
 	}
 	pluginInstaller := &installer.Installer{
-		Dir:         "plugins/dynamic",
-		WasmDir:     "plugins/wasm",
+		Dir:         datadir.Path("plugins/dynamic"),
+		WasmDir:     datadir.Path("plugins/wasm"),
 		Registry:    registry,
 		Directory:   installer.NewFetcher(nil),
 		Version:     Version,
@@ -470,6 +478,11 @@ func main() {
 	router.POST("/api/v1/directory/repos/:id/rebuild", goblog._admin.RebuildDirectoryRepo)
 	router.DELETE("/api/v1/directory/repos/:id", goblog._admin.DelistDirectoryRepo)
 	//if we use true here - it will override the home route and just show files
+	if datadir.Dir() != "" {
+		// Uploads are written under the data directory; anything that is
+		// not there (a file the image ships in www/uploads) falls through.
+		router.Use(static.Serve("/uploads", static.LocalFile(datadir.Path("uploads"), false)))
+	}
 	router.Use(static.Serve("/", static.LocalFile("www", false)))
 	if err != nil {
 		log.Println("Couldn't get the hostname")
@@ -650,7 +663,7 @@ func updateDB(c *gin.Context) {
 		fail("Invalid database type")
 		return
 	}
-	if err := os.WriteFile(".env", []byte(cfg.envFile()), 0600); err != nil {
+	if err := os.WriteFile(datadir.Path(".env"), []byte(cfg.envFile()), 0600); err != nil {
 		fail("Couldn't write the .env file: " + err.Error())
 		return
 	}

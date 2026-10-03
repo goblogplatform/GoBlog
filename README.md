@@ -66,8 +66,11 @@ Visit http://localhost:7000 and follow the install wizard.
 
 ### Docker
 ```bash
-docker run -p 7000:7000 compscidr/goblog:latest
+docker run -p 7000:7000 -e GOBLOG_DATA_DIR=/data -v goblog-data:/data compscidr/goblog:latest
 ```
+`GOBLOG_DATA_DIR` is where goblog keeps everything it writes: `.env` (the session key, database settings and GitHub credentials the wizard saves), the SQLite database, uploads, and installed plugins and themes. With it on a volume, the site survives the container being replaced, for example when you pull a newer image. Without it those files are written inside the container and are lost with it.
+
+A relative SQLite path such as the wizard's default `goblog.db` is created inside the data directory; an absolute path is used as given. Sites set up before `GOBLOG_DATA_DIR` existed keep working unchanged when it is not set.
 
 ### Database
 SQLite is the default and needs no setup. To use MySQL or PostgreSQL instead, pick it in the install wizard or set the variables in `.env` (see `template.env`):
@@ -195,7 +198,7 @@ The installer writes this sidecar for directory installs; an operator dropping a
 
 #### Installing from the directory
 **Admin → Plugins** lists what is installed and lets you browse and search the [plugin directory](https://www.goblog.live/plugins), install a plugin with one click, update it when the directory has a newer release, or uninstall it. WebAssembly is the only format the directory installs; requirements:
-- `plugins/wasm/` writable by goblog (WASM loading is on by default; set `ENABLE_WASM_PLUGINS=false` to disable it entirely). With Docker, bind-mount that directory (see below) — otherwise installed plugins vanish with the container.
+- `plugins/wasm/` writable by goblog (WASM loading is on by default; set `ENABLE_WASM_PLUGINS=false` to disable it entirely). With Docker, set `GOBLOG_DATA_DIR` (see [Docker](#docker)) or bind-mount that directory (see below) — otherwise installed plugins vanish with the container.
 - The directory URL is the `plugin_directory_url` setting (default `https://www.goblog.live/plugins/index.json`); point it elsewhere to run a private directory. `plugin_directory_url` is a trust decision: whatever it points at can offer code that runs inside goblog once you click Install.
 
 Install downloads the plugin's `.wasm` asset, verifies its sha256 against the directory index, loads it, checks that its name and version match, and only then writes it (plus the `allowed_hosts` sidecar) to `plugins/wasm/` and starts it — no restart. Updates keep the plugin's settings; uninstall removes both files. Install only from sources you trust. A dynamic (`.go`) plugin installed before the directory went wasm-only can still be updated to a wasm release or uninstalled, just not reinstalled as `.go`.

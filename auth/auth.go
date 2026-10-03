@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"errors"
+	"goblog/datadir"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -77,7 +78,7 @@ func (a *Auth) requestAccessToken(parsedCode string) (*AccessTokenResponse, erro
 	// .env is the usual home for these, but a missing file is not itself an
 	// error: a deployment may set them in the real environment. What matters
 	// is ending up with both values, which is checked below.
-	if err := godotenv.Load(".env"); err != nil {
+	if err := godotenv.Load(datadir.Path(".env")); err != nil {
 		_ = godotenv.Load("local.env")
 	}
 	clientID := os.Getenv("client_id")

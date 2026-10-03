@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"goblog/datadir"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -139,7 +140,7 @@ func (cfg dbConfig) dsn() string {
 func openDatabase(cfg dbConfig) (*gorm.DB, error) {
 	switch cfg.Type {
 	case "sqlite":
-		return gorm.Open(sqlite.Open(cfg.SQLiteFile), &gorm.Config{
+		return gorm.Open(sqlite.Open(datadir.Path(cfg.SQLiteFile)), &gorm.Config{
 			DisableForeignKeyConstraintWhenMigrating: true,
 		})
 	case "mysql":

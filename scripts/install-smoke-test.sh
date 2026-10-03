@@ -8,10 +8,16 @@
 # GOBLOG_IMAGE names one that already exists. GOBLOG_PORT (default 7007) is
 # the host port the container is published on.
 #
+# The container runs the way the quick start says to: GOBLOG_DATA_DIR on a
+# volume. Half way through, the container is removed and a new one started
+# on the same volume, which is what an upgrade does (#653). With
+# GOBLOG_SMOKE_LEGACY=1 there is no data directory and the container is
+# restarted instead: the layout of installs that predate GOBLOG_DATA_DIR.
+#
 # What it cannot do is the wizard's last step, authorising a GitHub OAuth
 # app. It writes placeholder client_id/client_secret into the container's
-# .env and restarts instead, so GitHub's callback and the first admin login
-# are not covered.
+# .env instead, so GitHub's callback and the first admin login are not
+# covered.
 set -euo pipefail
 
 DB=${1:-}
@@ -26,7 +32,15 @@ BASE="http://127.0.0.1:$PORT"
 NET="goblog-smoke-$DB"
 APP="goblog-smoke-$DB-app"
 DBC="goblog-smoke-$DB-db"
-APP_DIR=/go/src/github.com/compscidr/goblog
+VOL="goblog-smoke-$DB-data"
+LEGACY=${GOBLOG_SMOKE_LEGACY:-}
+if [ -n "$LEGACY" ]; then
+  ENV_FILE=/go/src/github.com/compscidr/goblog/.env
+  run_args=()
+else
+  ENV_FILE=/data/.env
+  run_args=(-e GOBLOG_DATA_DIR=/data -v "$VOL:/data")
+fi
 TITLE="Smoke Test Blog"
 TMP=$(mktemp -d)
 
@@ -37,6 +51,7 @@ cleanup() {
     docker logs "$APP" 2>&1 | tail -60 >&2 || true
   fi
   docker rm -f "$APP" "$DBC" >/dev/null 2>&1 || true
+  docker volume rm "$VOL" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
   rm -rf "$TMP"
   exit "$code"
@@ -71,8 +86,14 @@ if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
 fi
 
 docker rm -f "$APP" "$DBC" >/dev/null 2>&1 || true
+docker volume rm "$VOL" >/dev/null 2>&1 || true
 docker network rm "$NET" >/dev/null 2>&1 || true
 docker network create "$NET" >/dev/null
+
+start_app() {
+  docker run -d --name "$APP" --network "$NET" -p "127.0.0.1:$PORT:7000" "${run_args[@]}" "$IMAGE" >/dev/null
+  wait_for goblog 60 app_up
+}
 
 # The wizard's database form, as the browser posts it.
 case "$DB" in
@@ -99,9 +120,8 @@ case "$DB" in
     ;;
 esac
 
-step "starting goblog ($DB)"
-docker run -d --name "$APP" --network "$NET" -p "127.0.0.1:$PORT:7000" "$IMAGE" >/dev/null
-wait_for goblog 60 app_up
+step "starting goblog ($DB${LEGACY:+, no data directory})"
+start_app
 
 step "a fresh install shows the database wizard"
 request "GET /" 200 "$BASE/"
@@ -124,18 +144,30 @@ body_has 'id="settings-form"' "GET / after the database step"
 step "settings step"
 request "PATCH /api/v1/settings" 202 -X PATCH "$BASE/api/v1/settings" -H 'Content-Type: application/json' \
   -d "[{\"key\":\"site_title\",\"value\":\"$TITLE\",\"type\":\"text\"},{\"key\":\"site_subtitle\",\"value\":\"installed by the smoke test\",\"type\":\"text\"}]"
+echo "smoke test upload" >"$TMP/smoke-upload.txt"
+request "POST /api/v1/upload" 200 -X POST "$BASE/api/v1/upload" -F "file=@$TMP/smoke-upload.txt"
+body_has "/uploads/smoke-upload.txt" "POST /api/v1/upload"
 request "GET /?page=auth" 200 "$BASE/?page=auth"
 body_has 'name="client_id"' "GET /?page=auth"
 
 # The real last step is GitHub redirecting back to /login, whose handler
 # stores the credentials and registers the site's routes. With placeholders
-# there is no callback, so the routes arrive with the restart below instead;
-# that also covers a restart of a finished install (.env re-read, database
-# reconnected, migrations re-run).
-step "auth step (placeholder GitHub credentials written to .env), then restart"
-docker exec "$APP" sh -c "printf 'client_id=smoke\nclient_secret=smoke\n' >> $APP_DIR/.env"
-docker restart "$APP" >/dev/null
-wait_for "goblog after restart" 60 app_up
+# there is no callback, so the routes arrive with the next start instead.
+step "auth step (placeholder GitHub credentials written to .env)"
+docker exec "$APP" sh -c "printf 'client_id=smoke\nclient_secret=smoke\n' >> $ENV_FILE"
+
+if [ -n "$LEGACY" ]; then
+  step "restarting the container"
+  docker restart "$APP" >/dev/null
+  wait_for "goblog after restart" 60 app_up
+else
+  # Everything the install wrote has to be on the volume: .env, the SQLite
+  # file, the upload.
+  step "replacing the container, keeping only the data volume"
+  docker logs "$APP" >"$TMP/first.log" 2>&1
+  docker rm -f "$APP" >/dev/null
+  start_app
+fi
 
 check_site() {
   request "GET /" 200 "$BASE/"
@@ -146,6 +178,8 @@ check_site() {
   done
   request "GET /sitemap.xml" 200 "$BASE/sitemap.xml"
   body_has "<urlset" "GET /sitemap.xml"
+  request "GET /uploads/smoke-upload.txt" 200 "$BASE/uploads/smoke-upload.txt"
+  body_has "smoke test upload" "GET /uploads/smoke-upload.txt"
   request "GET /no-such-page" 404 "$BASE/no-such-page"
   request "GET /admin, logged out" 302 "$BASE/admin"
 }
@@ -157,7 +191,7 @@ check_site
 # setting silently reads as its default), so the log is part of the result.
 # The wrong-password check above is the one failure that is meant to be there.
 step "no panics or SQL errors in the log"
-if docker logs "$APP" 2>&1 | grep -v -e "Couldn't connect to the database" -e "failed to initialize database" \
+if { cat "$TMP/first.log" 2>/dev/null; docker logs "$APP" 2>&1; } | grep -v -e "Couldn't connect to the database" -e "failed to initialize database" \
     | grep -E "panic|Error [0-9]{4} \(|SQLSTATE|syntax error|SQL logic error|no such (table|column)" >"$TMP/errors"; then
   head -20 "$TMP/errors" >&2
   fail "goblog logged errors"

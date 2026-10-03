@@ -2,6 +2,35 @@
 
 Notes for upgrading an existing GoBlog site across releases that need manual steps. Newest first.
 
+## Moving an existing site into `GOBLOG_DATA_DIR`
+
+Optional, from 0.14.0. A site set up before `GOBLOG_DATA_DIR` existed keeps its files in goblog's working directory (`/go/src/github.com/compscidr/goblog` in the Docker image), usually with one bind mount per path. It keeps working as it is. To move it to a single data directory instead:
+
+1. **Stop goblog** and take a backup of everything below.
+2. **Copy the files into the data directory**, keeping these names:
+
+   | Before (relative to the working directory) | In the data directory |
+   |---|---|
+   | `.env` | `.env` |
+   | the SQLite file named by `sqlite_db` in `.env` | any name, see step 3 |
+   | `www/uploads/` | `uploads/` |
+   | `plugins/wasm/` | `plugins/wasm/` |
+   | `plugins/dynamic/` | `plugins/dynamic/` |
+   | `themes/installed/` | `themes/installed/` (not needed if you set `THEMES_INSTALLED_DIR`, which still wins) |
+
+   Copy only what exists; goblog creates the rest. A MySQL or PostgreSQL database stays where it is.
+3. **Point `sqlite_db` at the copy.** A relative path is resolved inside the data directory, so `sqlite_db=goblog.db` means `<data dir>/goblog.db`. Do not keep a `../` path: `sqlite_db=../database.db` would now resolve to the data directory's parent. An absolute path is used as given.
+4. **Start goblog with `GOBLOG_DATA_DIR`** set to the directory, and with Docker mount it instead of the individual paths:
+
+   ```bash
+   docker run -p 7000:7000 -e GOBLOG_DATA_DIR=/data -v /srv/goblog:/data compscidr/goblog:v0.14.0
+   ```
+
+   The log says `Data directory: /data` at startup.
+5. **Check** the site, an image from a post (uploads are served at the same `/uploads/...` URLs), **Admin → Plugins** and **Admin → Themes**. Signing in should work with the same account, since `.env` carries the session key and GitHub settings.
+
+Two things still read only from the working directory: the WordPress-compatibility path `/wp-content/uploads/` (served from `www/`), and `local.env`, a development fallback for `.env`. Leave those mounts in place if you use them.
+
 ## 0.7.0
 
 ### Themes

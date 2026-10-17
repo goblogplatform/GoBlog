@@ -1790,6 +1790,13 @@ func TestHeadMetadata(t *testing.T) {
 		`<link rel="canonical" href="https://www.example.test/dir/hello">`,
 		`<meta property="og:title" content="GoBlog: Hello plugin">`)
 
+	// Template actions that print nothing must not leave blank lines (#649).
+	for _, page := range []string{"/", "/posts/2026/08/15/hello", "/dir/hello", "/search?q=x"} {
+		if h := head(get(page)); regexp.MustCompile(`\n[ \t]*\n`).MatchString(h) {
+			t.Errorf("%s head has blank lines:\n%s", page, h)
+		}
+	}
+
 	// Search results are not for indexing.
 	check(t, "/search?q=x", `<meta name="robots" content="noindex, follow"`, `<link rel="canonical" href="https://www.example.test/search">`)
 

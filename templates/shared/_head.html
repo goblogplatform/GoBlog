@@ -1,4 +1,4 @@
-{{ define "_head" }}
+{{ define "_head" -}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,43 +7,55 @@
   <meta name="author" content="{{ .settings.site_title.Value }}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   {{- /* Search result pages and the like ask not to be indexed; otherwise the robots_tag setting. */}}
-  {{ if .noindex }}
+  {{- if .noindex }}
   <meta name="robots" content="noindex, follow" />
-  {{ else }}
+  {{- else }}
   <meta name="robots" content="{{ with index .settings "robots_tag" }}{{ if .Value }}{{ .Value }}{{ else }}index, follow{{ end }}{{ else }}index, follow{{ end }}" />
-  {{ end }}
+  {{- end }}
   {{- /* Description: the page's own (a plugin page's meta_description, a post's first words), else the site_description setting. */}}
-  {{ $description := "" }}
-  {{ if .meta_description }}{{ $description = .meta_description }}
-  {{ else if .post }}{{ $description = .post.PlainTextPreview 155 }}
-  {{ else }}{{ with index .settings "site_description" }}{{ $description = .Value }}{{ end }}{{ end }}
+  {{- $description := "" }}
+  {{- if .meta_description }}{{ $description = .meta_description }}
+  {{- else if .post }}{{ $description = .post.PlainTextPreview 155 }}
+  {{- else }}{{ with index .settings "site_description" }}{{ $description = .Value }}{{ end }}{{ end }}
   {{- /* Title: "<site>: <page>" — a page that sets no title (the admin pages) gets the site title alone; a missing value must never print as %!s(<nil>). */}}
-  {{ $siteTitle := "" }}{{ with .settings }}{{ with .site_title }}{{ $siteTitle = .Value }}{{ end }}{{ end }}
-  {{ $pageTitle := "" }}{{ if .post }}{{ $pageTitle = .post.Title }}{{ else }}{{ with .title }}{{ $pageTitle = . }}{{ end }}{{ end }}
-  {{ $title := $siteTitle }}{{ if and $siteTitle $pageTitle }}{{ $title = printf "%s: %s" $siteTitle $pageTitle }}{{ else if $pageTitle }}{{ $title = $pageTitle }}{{ end }}
+  {{- $siteTitle := "" }}{{ with .settings }}{{ with .site_title }}{{ $siteTitle = .Value }}{{ end }}{{ end }}
+  {{- $pageTitle := "" }}{{ if .post }}{{ $pageTitle = .post.Title }}{{ else }}{{ with .title }}{{ $pageTitle = . }}{{ end }}{{ end }}
+  {{- $title := $siteTitle }}{{ if and $siteTitle $pageTitle }}{{ $title = printf "%s: %s" $siteTitle $pageTitle }}{{ else if $pageTitle }}{{ $title = $pageTitle }}{{ end }}
   {{- /* site_url is set by blog.Render; pages rendered without it (admin) get "" and no absolute URLs. */}}
-  {{ $site := "" }}{{ with .site_url }}{{ $site = . }}{{ end }}
-  {{ $image := "" }}
-  {{ with index .settings "site_image" }}{{ if .Value }}{{ $image = printf "%s%s" $site .Value }}{{ end }}{{ end }}
+  {{- $site := "" }}{{ with .site_url }}{{ $site = . }}{{ end }}
+  {{- $image := "" }}
+  {{- with index .settings "site_image" }}{{ if .Value }}{{ $image = printf "%s%s" $site .Value }}{{ end }}{{ end }}
   <title>{{ $title }}</title>
-  {{ if $description }}<meta name="description" content="{{ $description }}">{{ end }}
-  {{ if .canonical_url }}<link rel="canonical" href="{{ .canonical_url }}">{{ end }}
+  {{- if $description }}
+  <meta name="description" content="{{ $description }}">
+  {{- end }}
+  {{- if .canonical_url }}
+  <link rel="canonical" href="{{ .canonical_url }}">
+  {{- end }}
   <meta property="og:site_name" content="{{ .settings.site_title.Value }}">
   <meta property="og:title" content="{{ $title }}">
-  {{ if $description }}<meta property="og:description" content="{{ $description }}">{{ end }}
-  {{ if .canonical_url }}<meta property="og:url" content="{{ .canonical_url }}">{{ end }}
+  {{- if $description }}
+  <meta property="og:description" content="{{ $description }}">
+  {{- end }}
+  {{- if .canonical_url }}
+  <meta property="og:url" content="{{ .canonical_url }}">
+  {{- end }}
   <meta property="og:locale" content="en_US">
-  {{ if .post }}
+  {{- if .post }}
   <meta property="og:type" content="article">
-  {{ $first := "" }}{{ range .post.ImageURLs $site }}{{ if not $first }}{{ $first = . }}{{ end }}{{ end }}
-  {{ if $first }}<meta property="og:image" content="{{ $first }}">{{ else if $image }}<meta property="og:image" content="{{ $image }}">{{ end }}
+  {{- $first := "" }}{{ range .post.ImageURLs $site }}{{ if not $first }}{{ $first = . }}{{ end }}{{ end }}
+  {{- if $first }}
+  <meta property="og:image" content="{{ $first }}">
+  {{- else if $image }}
+  <meta property="og:image" content="{{ $image }}">
+  {{- end }}
   <meta property="og:updated_time" content="{{ .post.UpdatedAt.Format "2006-01-02T15:04:05Z07:00" }}">
   <meta property="article:published_time" content="{{ .post.CreatedAt.Format "2006-01-02T15:04:05Z07:00" }}">
   <meta property="article:modified_time" content="{{ .post.UpdatedAt.Format "2006-01-02T15:04:05Z07:00" }}">
   <meta property="article:author" content="{{ .settings.site_title.Value }}">
-  {{ range .post.Tags }}
+  {{- range .post.Tags }}
   <meta property="article:tag" content="{{ .Name }}">
-  {{ end }}
+  {{- end }}
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -65,17 +77,21 @@
       }]
     }
   </script>
-  {{ else }}
+  {{- else }}
   <meta property="og:type" content="website">
-  {{ if $image }}<meta property="og:image" content="{{ $image }}">{{ end }}
-  {{ if .is_home }}
+  {{- if $image }}
+  <meta property="og:image" content="{{ $image }}">
+  {{- end }}
+  {{- if .is_home }}
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "{{ .settings.site_title.Value }}",
       "url": "{{ $site }}/",
-      {{ if $description }}"description": "{{ $description }}",{{ end }}
+      {{- if $description }}
+      "description": "{{ $description }}",
+      {{- end }}
       "potentialAction": {
         "@type": "SearchAction",
         "target": "{{ $site }}/search?q={search_term_string}",
@@ -84,18 +100,30 @@
     }
   </script>
   {{- /* A personal site says whose it is: the site title is the person's name, and sameAs lists the profiles the Social Icons plugin holds (.plugins.socialicons.links), which is how a search engine ties them to this site; the optional person_* settings add role, employer, school and expertise. Off unless site_is_person is set. */}}
-  {{ with index .settings "site_is_person" }}{{ if eq .Value "true" }}
+  {{- with index .settings "site_is_person" }}{{ if eq .Value "true" }}
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "Person",
       "name": "{{ $.settings.site_title.Value }}",
-      {{ if $description }}"description": "{{ $description }}",{{ end }}
-      {{ if $image }}"image": "{{ $image }}",{{ end }}
-      {{ with index $.settings "person_job_title" }}{{ if .Value }}"jobTitle": "{{ .Value }}",{{ end }}{{ end }}
-      {{ with index $.settings "person_works_for" }}{{ if .Value }}"worksFor": { "@type": "Organization", "name": "{{ .Value }}"{{ with index $.settings "person_works_for_url" }}{{ if .Value }}, "url": "{{ .Value }}"{{ end }}{{ end }} },{{ end }}{{ end }}
-      {{ with index $.settings "person_alumni_of" }}{{ if .Value }}"alumniOf": { "@type": "CollegeOrUniversity", "name": "{{ .Value }}" },{{ end }}{{ end }}
-      {{ with index $.settings "person_knows_about" }}{{ with commaList .Value }}"knowsAbout": {{ . }},{{ end }}{{ end }}
+      {{- if $description }}
+      "description": "{{ $description }}",
+      {{- end }}
+      {{- if $image }}
+      "image": "{{ $image }}",
+      {{- end }}
+      {{- with index $.settings "person_job_title" }}{{ if .Value }}
+      "jobTitle": "{{ .Value }}",
+      {{- end }}{{ end }}
+      {{- with index $.settings "person_works_for" }}{{ if .Value }}
+      "worksFor": { "@type": "Organization", "name": "{{ .Value }}"{{ with index $.settings "person_works_for_url" }}{{ if .Value }}, "url": "{{ .Value }}"{{ end }}{{ end }} },
+      {{- end }}{{ end }}
+      {{- with index $.settings "person_alumni_of" }}{{ if .Value }}
+      "alumniOf": { "@type": "CollegeOrUniversity", "name": "{{ .Value }}" },
+      {{- end }}{{ end }}
+      {{- with index $.settings "person_knows_about" }}{{ with commaList .Value }}
+      "knowsAbout": {{ . }},
+      {{- end }}{{ end }}
       "sameAs": [
         {{- with $.plugins }}{{ with index . "socialicons" }}{{ range $i, $l := index . "links" }}{{ if $i }},{{ end }}
         "{{ $l.URL }}"
@@ -104,26 +132,28 @@
       "url": "{{ $site }}/"
     }
   </script>
-  {{ end }}{{ end }}
-  {{ end }}
-  {{ end }}
-  {{ if $site }}<link rel="alternate" type="application/rss+xml" title="{{ .settings.site_title.Value }}" href="{{ $site }}/rss.xml">{{ end }}
+  {{- end }}{{ end }}
+  {{- end }}
+  {{- end }}
+  {{- if $site }}
+  <link rel="alternate" type="application/rss+xml" title="{{ .settings.site_title.Value }}" href="{{ $site }}/rss.xml">
+  {{- end }}
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <link rel="icon" type="image/png" href="{{ .settings.favicon.Value }}">
   <link rel="manifest" href="/site.webmanifest">
-  {{ if .admin_page }}
+  {{- if .admin_page }}
   <script defer src="/js/inline-attachment.js"></script>
   <script defer src="/js/codemirror-4.inline-attachment.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/simplemde/1.11.2/simplemde.min.js" integrity="sha512-ksSfTk6JIdsze75yZ8c+yDVLu09SNefa9IicxEE+HZvWo9kLPY1vrRlmucEMHQReWmEdKqusQWaDMpkTb3M2ug==" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/simplemde/1.11.2/simplemde.min.css" integrity="sha512-lB03MbtC3LxImQ+BKnZIyvVHTQ8SSmQ15AhVh5U/+CCp4wKtZMvgLGXbZIjIBBbnKsmk3/6n2vcF8a9CtVVSfA==" crossorigin="anonymous" />
-  {{ end }}
+  {{- end }}
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.8/js/bootstrap.min.js" integrity="sha512-nKXmKvJyiGQy343jatQlzDprflyB5c+tKCzGP3Uq67v+lmzfnZUi/ZT+fc6ITZfSC5HhaBKUIvr/nTLCV+7F+Q==" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.8/css/bootstrap.min.css" integrity="sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==" crossorigin="anonymous" />
   {{- /* Only the login page uses .btn-social; it matched no rule anywhere else. */}}
-  {{ if .login_page }}
+  {{- if .login_page }}
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-social/5.1.1/bootstrap-social.min.css" integrity="sha512-f8mUMCRNrJxPBDzPJx3n+Y5TC5xp6SmStstEfgsDXZJTcxBakoB5hvPLhAfJKa9rCvH+n3xpJ2vQByxLk4WP2g==" crossorigin="anonymous" />
-  {{ end }}
+  {{- end }}
   {{- /* Icons are decorative, so Font Awesome does not have to block the first
          paint: it loads against the print media type, which the browser
          fetches at a low priority, and switches to all once it arrives. The
@@ -133,20 +163,22 @@
   <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" /></noscript>
   {{- /* Was Tachyons from cdnjs: 73 KB for the four rules in base.css (#630). */}}
   <link rel="stylesheet" href="/css/base.css"/>
-  {{ if .admin_page }}
+  {{- if .admin_page }}
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js" integrity="sha512-QoJS4DOhdmG8kbbHkxmB/rtPdN62cGWXAdAFWWJPvUFF1/zxcPSdAnn4HhYZSIlVoLVEJ0LesfNlusgm2bPfnA==" crossorigin="anonymous"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.6.0/moment-timezone-with-data.min.js" integrity="sha512-+FcC+reETRqrbKDor++Otoek++yhj4Q1pu/VjNTYHywub+2uoKV+0o0C+yLDun7b+MzAQ0qz9G5ShZUUJpxN1Q==" crossorigin="anonymous"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/tempusdominus-bootstrap-4/5.39.0/js/tempusdominus-bootstrap-4.min.js" integrity="sha512-k6/Bkb8Fxf/c1Tkyl39yJwcOZ1P4cRrJu77p83zJjN2Z55prbFHxPs9vN7q3l3+tSMGPDdoH51AEU8Vgo1cgAA==" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tempusdominus-bootstrap-4/5.39.0/css/tempusdominus-bootstrap-4.min.css" integrity="sha512-3JRrEUwaCkFUBLK1N8HehwQgu8e23jTH4np5NHOmQOobuC4ROQxFwFgBLTnhcnQRMs84muMh0PnnwXlPq5MGjg==" crossorigin="anonymous" />
-  {{ end }}
+  {{- end }}
   <link rel="stylesheet" href="/theme/css/goblog.css"/>
-  {{ if .admin_page }}
+  {{- if .admin_page }}
   <!-- after the theme's CSS so the admin surface wins over any theme backdrop -->
   <link rel="stylesheet" href="/css/admin.css"/>
-  {{ end }}
-  {{ with index .settings "custom_header_code" }}{{ if .Value }}
+  {{- end }}
+  {{- with index .settings "custom_header_code" }}{{ if .Value }}
   {{ .Value | rawHTML }}
-  {{ end }}{{ end }}
-  {{ with .plugin_head_html }}{{ . | rawHTML }}{{ end }}
+  {{- end }}{{ end }}
+  {{- with .plugin_head_html }}
+  {{ . | rawHTML }}
+  {{- end }}
 </head>
 {{ end }}

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"goblog/admin"
-	"goblog/blog"
-	"goblog/datadir"
+	"github.com/goblogplatform/goblog/admin"
+	"github.com/goblogplatform/goblog/blog"
+	"github.com/goblogplatform/goblog/datadir"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"

@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"goblog/datadir"
+	"github.com/goblogplatform/goblog/datadir"
 )
 
 // githubCredential matches a GitHub OAuth app's client id ("Ov23li…",

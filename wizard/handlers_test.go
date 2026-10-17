@@ -1,7 +1,7 @@
 package wizard
 
 import (
-	"goblog/datadir"
+	"github.com/goblogplatform/goblog/datadir"
 	"html/template"
 	"io"
 	"net/http"

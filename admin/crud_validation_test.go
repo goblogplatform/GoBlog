@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"testing"
 
-	"goblog/admin"
-	"goblog/auth"
-	"goblog/blog"
+	"github.com/goblogplatform/goblog/admin"
+	"github.com/goblogplatform/goblog/auth"
+	"github.com/goblogplatform/goblog/blog"
+	"github.com/goblogplatform/goblog/theme"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
@@ -34,9 +35,7 @@ func crudAPI(t *testing.T, isAdmin bool) *gin.Engine {
 	ad := admin.New(db, a, &b, "test")
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	tmpl := template.Must(template.New("").Funcs(template.FuncMap{
-		"rawHTML": func(s string) template.HTML { return template.HTML(s) },
-	}).ParseGlob("../templates/shared/*.html"))
+	tmpl := template.Must(template.New("").Funcs(theme.FuncMap()).ParseGlob("../templates/shared/*.html"))
 	template.Must(tmpl.ParseGlob("../themes/default/templates/*.html"))
 	r.SetHTMLTemplate(tmpl)
 	r.POST("/api/v1/pages", ad.CreatePage)

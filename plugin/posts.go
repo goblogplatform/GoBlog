@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"goblog/blog"
+	"github.com/goblogplatform/goblog/blog"
 )
 
 // Post is a published post as a plugin sees it through the posts_list host

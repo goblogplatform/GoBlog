@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"goblog/auth"
-	"goblog/blog"
+	"github.com/goblogplatform/goblog/auth"
+	"github.com/goblogplatform/goblog/blog"
+	"github.com/goblogplatform/goblog/theme"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
@@ -37,9 +38,7 @@ func postTypeFixture(t *testing.T, user *auth.BlogUser, isAdmin bool) (*gin.Engi
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	tmpl := template.Must(template.New("").Funcs(template.FuncMap{
-		"rawHTML": func(s string) template.HTML { return template.HTML(s) },
-	}).ParseGlob("../templates/shared/*.html"))
+	tmpl := template.Must(template.New("").Funcs(theme.FuncMap()).ParseGlob("../templates/shared/*.html"))
 	template.Must(tmpl.ParseGlob("../themes/default/templates/*.html"))
 	router.SetHTMLTemplate(tmpl)
 	router.NoRoute(b.NoRoute)

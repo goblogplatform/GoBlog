@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"goblog/blog"
-	"goblog/plugin"
+	"github.com/goblogplatform/goblog/blog"
+	"github.com/goblogplatform/goblog/plugin"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

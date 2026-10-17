@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"strings"
 
-	"goblog/plugin"
+	"github.com/goblogplatform/goblog/plugin"
 )
 
 // JSON shapes of the host contract (spec §1). Field names are the API: a

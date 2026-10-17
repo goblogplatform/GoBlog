@@ -11,5 +11,6 @@
       </div>
     </div>
   </div>
+  {{ with .plugins.features }}{{ .html | rawHTML }}{{ end }}
 
 {{ template "footer.html" .}}

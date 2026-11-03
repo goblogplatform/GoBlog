@@ -1,11 +1,9 @@
 module github.com/goblogplatform/goblog
 
-go 1.26.0
-
-toolchain go1.26.1
+go 1.26.10
 
 require (
-	github.com/gin-contrib/sessions v1.1.2 // https://github.com/gin-contrib/sessions/issues/287
+	github.com/gin-contrib/sessions v1.1.3 // https://github.com/gin-contrib/sessions/issues/287
 	github.com/gin-contrib/static v1.1.8
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0

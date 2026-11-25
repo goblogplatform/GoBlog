@@ -19,7 +19,7 @@ require (
 require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/extism/go-sdk v1.7.1
-	github.com/gobwas/glob v1.0.0
+	github.com/gobwas/glob v1.1.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/traefik/yaegi v0.16.1

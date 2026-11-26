@@ -1,12 +1,10 @@
 module github.com/goblogplatform/goblog
 
-go 1.26.0
-
-toolchain go1.26.1
+go 1.26.10
 
 require (
 	github.com/gin-contrib/sessions v1.1.2 // https://github.com/gin-contrib/sessions/issues/287
-	github.com/gin-contrib/static v1.1.8
+	github.com/gin-contrib/static v1.1.10
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
@@ -75,7 +73,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/arch v0.29.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
